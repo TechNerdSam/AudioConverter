@@ -60,7 +60,7 @@ Si vous souhaitez compiler l'application à partir de son code source :
 
 1.  **Clonez le dépôt** :
     ```bash
-    git clone [url_du_depot]
+    git clone git clone https://github.com/technerdsam/AudioConverter.git
     ```
 2.  **Naviguez vers le répertoire du projet** :
     ```bash
@@ -158,7 +158,7 @@ If you wish to build the application from its source code:
 
 1.  **Clone the repository**:
     ```bash
-    git clone [repository_url]
+    git clone git clone https://github.com/technerdsam/AudioConverter.git
     ```
 2.  **Navigate to the project directory**:
     ```bash
