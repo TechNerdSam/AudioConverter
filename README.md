@@ -1,193 +1,127 @@
-# Convertisseur Audio Élégant 🎶
+# 🎧 AUDIO-CONVERTER : La Conversion Sonore Haute-Fidélité
 
-Le Convertisseur Audio Élégant est une application de bureau avancée et de qualité professionnelle, conçue pour répondre à vos besoins de conversion audio les plus exigeants. Développé avec Java Swing, il offre une interface conviviale pour convertir vos fichiers audio entre divers formats, avec un contrôle granulaire sur les paramètres de sortie. 🎚️✨
+[](https://www.google.com/search?q=https://github.com/TechNerdSam/AudioConverter/graphs/commit-activity)
+[](https://www.java.com/)
+[](https://ffmpeg.org/)
+[](https://creativecommons.org/publicdomain/zero/1.0/)
 
-## Fonctionnalités Clés 🚀
+> *"Le son est une vibration. La qualité est un choix. Cet outil vous donne le contrôle absolu sur vos fréquences audio avec une précision chirurgicale."*
 
-  * Prise en charge de multiples formats audio : MP3, WAV, FLAC, AAC, OGG, M4A, WMA, AIFF. 🎧
-  * Capacités de conversion par lots avec sélection flexible du répertoire de sortie. 📂➡️📂
-  * Contrôle granulaire sur les paramètres audio de sortie : débit binaire (kbps), fréquence d'échantillonnage (Hz) et canaux (Mono/Stéréo/Original). 🎯
-  * Interface intuitive avec fonction glisser-déposer pour une addition facile des fichiers. 🖱️📥
-  * Diagnostics d'erreurs améliorés et rapports d'état clairs. ✅❌
-  * Détection automatique et configuration personnalisable du chemin de l'exécutable FFmpeg. 🛠️
-
-## Formats Pris en Charge 🔄
-
-L'application prend en charge les formats audio suivants pour la conversion : `mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`, `wma`, `aiff`.
-
-## Prérequis 📋
-
-Pour exécuter ou compiler le Convertisseur Audio Élégant, vous aurez besoin de :
-
-  * **Java Runtime Environment (JRE) 8 ou supérieur** : Assurez-vous que Java est installé sur votre système. ☕
-  * **FFmpeg** : Cette application s'appuie sur FFmpeg pour toutes les opérations de conversion audio. Vous devez avoir FFmpeg installé sur votre système. Son exécutable doit être accessible via la variable d'environnement PATH de votre système, ou vous devrez configurer son chemin directement dans l'application. ➡️🔗
-
-## Comment Utiliser l'Application 💡
-
-1.  **Télécharger et Exécuter** :
-
-      * Téléchargez le fichier `AudioConverter.jar`. 📦
-      * Exécutez l'application via la commande : `java -jar AudioConverter.jar`. 🖥️
-
-2.  **Configuration de FFmpeg** :
-
-      * Au premier lancement, l'application tentera de localiser `ffmpeg.exe` (sur Windows) ou `ffmpeg` (sur Linux/macOS) dans le PATH de votre système ou dans le même répertoire que le JAR de l'application. 🔍
-      * Si FFmpeg n'est pas trouvé, le statut affichera "FFmpeg Statut: Non Trouvé". Cliquez sur le bouton "Configurer Chemin FFmpeg / Configure FFmpeg Path" pour sélectionner manuellement l'exécutable `ffmpeg` sur votre système. 📂➕
-
-3.  **Ajouter des Fichiers** :
-
-      * Glissez et déposez vos fichiers audio directement dans la zone de liste des fichiers de la fenêtre principale. 📂➡️🖥️
-      * Alternativement, cliquez sur le bouton "Ajouter Fichiers / Add Files" pour parcourir et sélectionner des fichiers depuis votre système. ➕📁
-
-4.  **Sélectionner la Sortie** :
-
-      * Choisissez le "Format de Sortie / Output Format" désiré dans le menu déroulant. 📄➡️🎵
-      * Cliquez sur "Parcourir / Browse" à côté de "Répertoire de Sortie / Output Directory" pour choisir l'emplacement de sauvegarde de vos fichiers convertis. 📍💾
-
-5.  **Paramètres Avancés (Optionnel)** :
-
-      * Cliquez sur "Paramètres Avancés / Advanced Settings" pour révéler des options supplémentaires. ⚙️
-      * Cochez "Activer les paramètres personnalisés / Enable Custom Settings" pour définir un débit binaire (kbps), une fréquence d'échantillonnage (Hz) ou sélectionner les canaux (Mono/Stéréo/Original) personnalisés. 📏🔊
-
-6.  **Convertir** :
-
-      * Cliquez sur le bouton "Convertir Audio / Convert Audio" pour démarrer le processus de conversion. ▶️
-      * Le label de statut en bas de l'écran indiquera la progression et l'achèvement de la conversion. 🟢
-
-## Compiler depuis les Sources 💻
-
-Si vous souhaitez compiler l'application à partir de son code source :
-
-1.  **Clonez le dépôt** :
-    ```bash
-    git clone [url_du_depot]
-    ```
-2.  **Naviguez vers le répertoire du projet** :
-    ```bash
-    cd AudioConverter
-    ```
-3.  **Compilez les fichiers source Java** :
-    ```bash
-    javac AudioConverter.java
-    ```
-    *(Note : Assurez-vous que tous les fichiers `.java` sont compilés, y compris les classes internes comme `AudioConverter$CustomComboBoxRenderer.java` si elles existent en tant que fichiers séparés, ou si elles sont dans `AudioConverter.java`, une seule commande `javac AudioConverter.java` suffira.)*
-4.  **Exécutez l'application** :
-    ```bash
-    java AudioConverter
-    ```
-
-## Dépannage 🆘
-
-  * **FFmpeg non trouvé** : Assurez-vous que FFmpeg est correctement installé et que son exécutable est ajouté à la variable d'environnement PATH de votre système. Sinon, utilisez le bouton "Configurer Chemin FFmpeg" dans l'application pour pointer manuellement vers l'exécutable `ffmpeg`. 🚫🔗
-  * **Erreurs de conversion** : Vérifiez la sortie de la console (où vous avez exécuté le JAR) pour les messages d'erreur détaillés de FFmpeg. Assurez-vous que vos fichiers d'entrée sont des fichiers audio valides et que le répertoire de sortie sélectionné dispose des autorisations d'écriture. 📝⚠️
-
-## Licence 📄
-
-Ce logiciel est sous licence Creative Commons Zero v1.0 Universal.
-Copyright (C) 2025 
-
-## Auteur ✍️
-
-Samyn-Antoy ABASSE.
-
-## Contact 📧
-
-Pour toute question, commentaire ou pour signaler des problèmes, n'hésitez pas à ouvrir une issue sur le dépôt GitHub. 💬
+Bienvenue sur **AudioConverter**. Oubliez les convertisseurs en ligne bourrés de publicités et les logiciels lents. Voici une **station de travail audio native**, propulsée par la robustesse de Java et la puissance brute de FFmpeg. Conçue pour les créateurs, les audiophiles et les pros qui exigent rapidité et intégrité du signal.
 
 -----
 
-# Elegant Audio Converter 🎶
+## 🚀 SAMYN-ANTOY : Architecte Growth & Tech Augmentée par l'IA
 
-The Elegant Audio Converter is an advanced, professional-grade desktop application designed to meet your most demanding audio conversion needs. Developed with Java Swing, it provides a user-friendly interface for converting your audio files between various formats, with granular control over output parameters. 🎚️✨
+**L'alliance du Code, de la Stratégie et du Design pour propulser votre business.**
 
-## Key Features 🚀
+Dans un monde saturé de bruit, je construis des signaux clairs. Des infrastructures qui ne se contentent pas de fonctionner, mais qui dominent.
 
-  * Support for multiple audio formats: MP3, WAV, FLAC, AAC, OGG, M4A, WMA, AIFF. 🎧
-  * Batch conversion capabilities with flexible output directory selection. 📂➡️📂
-  * Granular control over output audio parameters: bitrate (kbps), sample rate (Hz), and channels (Mono/Stereo/Original). 🎯
-  * Intuitive drag-and-drop interface for easy file addition. 🖱️📥
-  * Enhanced error diagnostics and clear status reporting. ✅❌
-  * Automatic and customizable FFmpeg executable path detection. 🛠️
+### ⚡ EXPERTISE À HAUT IMPACT
 
-## Supported Formats 🔄
+  * **💻 Dév Nouvelle Génération :** Développement assisté par IA (Prompt-to-Code) • SysAdmin • Infrastructures Robustes & Scalables.
+  * **📈 Croissance & Ads :** Stratégies d'Acquisition Agressives • Marketing Digital 360° • Data Science appliquée au Growth.
+  * **🎨 Visuels & Créa :** Photographie IA • Publicités à Haute Conversion (Neuro-Design).
 
-The application supports the following audio formats for conversion: `mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a`, `wma`, `aiff`.
+-----
 
-## Prerequisites 📋
+## 👇 PASSEZ À LA VITESSE SUPÉRIEURE (Zone d'Opportunité)
 
-To run or build the Elegant Audio Converter, you will need:
+Ne consommez pas la tech. Maîtrisez-la. Rejoignez le cercle.
 
-  * **Java Runtime Environment (JRE) 8 or higher**: Ensure Java is installed on your system. ☕
-  * **FFmpeg**: This application relies on FFmpeg for all audio conversion operations. You must have FFmpeg installed on your system. Its executable needs to be accessible via your system's PATH environment variable, or you will need to configure its path directly within the application. ➡️🔗
+### 💼 Collaborons ensemble
 
-## How to Use the Application 💡
+Accédez à mes stratégies, mes audits et ma vision tech pour 2025.
+👉 **[Le Blog Tech Pro de Samyn-Antoy ABASSE](https://monblog-sa-abasse.blogspot.com/)**
 
-1.  **Download & Run**:
+### 🧢 LA BOUTIQUE OFFICIELLE
 
-      * Download the `AudioConverter.jar` file. 📦
-      * Run the application using the command: `java -jar AudioConverter.jar`. 🖥️
+Rejoignez le mouvement. Portez la vision. L'uniforme des créateurs du Top 1%.
+🛒 **[Accès Exclusif : Mon Store Créateur Fourthwall](https://samynantoyabasse-shop.fourthwall.com)**
 
-2.  **FFmpeg Setup**:
+-----
 
-      * Upon first launch, the application will attempt to locate `ffmpeg.exe` (on Windows) or `ffmpeg` (on Linux/macOS) in your system's PATH or in the same directory as the application JAR. 🔍
-      * If FFmpeg is not found, the "FFmpeg Status" label will show "Non Trouvé / Not Found". Click the "Configurer Chemin FFmpeg / Configure FFmpeg Path" button to manually select the `ffmpeg` executable on your system. 📂➕
+## 💎 MON ARSENAL & LIFESTYLE 2025
 
-3.  **Add Files**:
+La productivité est une bio-mécanique. Voici les outils précis que j'utilise pour maintenir mon output dans leile mondiale.
 
-      * Drag and drop your audio files directly onto the main window's file list area. 📂➡️🖥️
-      * Alternatively, click the "Ajouter Fichiers / Add Files" button to browse and select files from your system. ➕📁
+| Catégorie | L'Arme Secrète | Le Levier de Performance | Lien d'Acquisition |
+| :--- | :--- | :--- | :--- |
+| **📱 Tech Mobile** | **iPhone 16** | Puissance Pure. Le bureau mobile pour gérer les flux en temps réel. | [**Commander la Puissance**](https://amzn.to/4ivKTuW) |
+| **🧱 Focus Créatif** | **LEGO Star Wars** | "Deep Work" manuel. La méditation active pour restructurer les réseaux neuronaux. | [**Booster ma Créativité**](https://amzn.to/44FrP7N) |
+| **⚡ Santé & Énergie** | **Air Fryer** | Bio-hacking nutritionnel. Carburant premium sans friction temporelle. | [**Optimiser l'Énergie**](https://amzn.to/48AECcZ) |
 
-4.  **Select Output**:
+*(Liens affiliés - Équipez-vous pour gagner)*
 
-      * Choose your desired "Format de Sortie / Output Format" from the dropdown menu. 📄➡️🎵
-      * Click "Parcourir / Browse" next to "Répertoire de Sortie / Output Directory" to select where your converted files will be saved. 📍💾
+-----
 
-5.  **Advanced Settings (Optional)**:
+## 🎚️ Le Moteur Audio (Fonctionnalités)
 
-      * Click "Paramètres Avancés / Advanced Settings" to reveal additional options. ⚙️
-      * Check "Activer les paramètres personnalisés / Enable Custom Settings" to set a custom bitrate (kbps), sample rate (Hz), or select channels (Mono/Stéréo/Original). 📏🔊
+Ce projet n'est pas un simple wrapper. C'est une interface intelligente pour le moteur FFmpeg.
 
-6.  **Convert**:
+### 🚀 Capacités Stratégiques
 
-      * Click the "Convertir Audio / Convert Audio" button to start the conversion process. ▶️
-      * The status label at the bottom will indicate the progress and completion of the conversion. 🟢
+  * **Conversion de Masse (Batch Processing) :** Traitez des albums entiers en un clic. Le temps est votre ressource la plus précieuse.
+  * **Compatibilité Totale 🎧 :** MP3, WAV, FLAC, AAC, OGG, M4A, WMA, AIFF. Aucun format ne vous résiste.
+  * **Contrôle Granulaire 🎯 :** Ne laissez pas le logiciel décider. Définissez le **bitrate (kbps)**, la **fréquence (Hz)** et les **canaux** (Mono/Stéréo) pour un rendu sur-mesure.
+  * **UX Intuitive :** Drag & Drop (Glisser-Déposer). Zéro friction entre votre fichier source et le résultat.
 
-## Building from Source 💻
+-----
 
-If you wish to build the application from its source code:
+## 🛠️ Protocole de Déploiement
 
-1.  **Clone the repository**:
+Transformez votre machine en studio de conversion en 3 étapes.
+
+### 1\. Prérequis (La Base)
+
+  * **Java JRE 8+** : Le moteur d'exécution.
+  * **FFmpeg** : Le cœur du réacteur. *L'application détecte automatiquement `ffmpeg.exe` s'il est dans le PATH ou le dossier local.*
+
+### 2\. Installation Rapide
+
+1.  Clonez le dépôt :
     ```bash
-    git clone [repository_url]
+    git clone https://github.com/technerdsam/AudioConverter.git
     ```
-2.  **Navigate to the project directory**:
+2.  Compilez le code source (si vous êtes un dev) :
     ```bash
     cd AudioConverter
-    ```
-3.  **Compile the Java source files**:
-    ```bash
     javac AudioConverter.java
     ```
-    *(Note: Ensure all `.java` files are compiled, including any inner classes like `AudioConverter$CustomComboBoxRenderer.java` if they exist as separate files, or if they are within `AudioConverter.java`, a single `javac AudioConverter.java` command will suffice.)*
-4.  **Run the application**:
+3.  **Exécutez** :
+    Lancez simplement le `.jar` ou via la ligne de commande :
     ```bash
     java AudioConverter
     ```
 
-## Troubleshooting 🆘
+### 3\. Workflow d'Utilisation
 
-  * **FFmpeg Not Found**: Ensure FFmpeg is correctly installed and its executable is added to your system's PATH environment variable. If not, use the "Configure FFmpeg Path" button in the application to manually point to the `ffmpeg` executable. 🚫🔗
-  * **Conversion Errors**: Check the console output (where you ran the JAR) for detailed FFmpeg error messages. Verify that your input files are valid audio files and that the selected output directory has write permissions. 📝⚠️
+1.  **Glissez** vos fichiers audio dans la zone dédiée.
+2.  **Sélectionnez** votre format cible (ex: FLAC pour l'archivage, MP3 pour le web).
+3.  **Cliquez** sur "Convertir".
+4.  *Optionnel :* Allez dans "Paramètres Avancés" pour tweaker le bitrate si vous visez une qualité audiophile.
 
-## License 📄
+-----
 
-This software is licensed under the Creative Commons Zero v1.0 Universal.
-Copyright (C) 2025.
+## 🤝 Contribution (Cercle d'Élite)
 
-## Author ✍️
+Le code est libre (CC0). L'innovation naît de la collaboration. Vous avez une optimisation de thread ou une nouvelle UI ?
 
-Samyn-Antoy ABASSE.
+1.  **Forkez** le projet.
+2.  **Créez** votre branche (`git checkout -b feature/UltraFast`).
+3.  **Commitez** (`git commit -m 'Upgrade: Parallélisation des tâches'`).
+4.  **Pushez** (`git push origin feature/UltraFast`).
+5.  **Ouvrez** une Pull Request.
 
-## Contact 📧
+-----
 
-For any inquiries, feedback, or to report issues, please open an issue on the GitHub repository. 💬
+## ✍️ Contact & Réseau
+
+**TechNerdSam (Samyn-Antoy ABASSE)**
+
+  * **Email Stratégique :** [samynantoy@gmail.com](mailto:samynantoy@gmail.com)
+  * **QG GitHub :** [TechNerdSam](https://github.com/TechNerdSam)
+
+-----
+
+*Propulsé par la vision de Samyn-Antoy. Codez pour impacter.*
