@@ -1,1331 +1,1225 @@
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.plaf.basic.BasicComboBoxRenderer;
+import javax.swing.border.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.plaf.basic.BasicProgressBarUI;
+import javax.swing.plaf.basic.BasicScrollBarUI;
+import javax.swing.plaf.basic.BasicSplitPaneDivider;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.security.CodeSource;
-import java.security.ProtectionDomain;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.prefs.Preferences;
-import javax.imageio.ImageIO; // Import for ImageIO
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javax.sound.sampled.*;
 
-/**
- * <h1>Elegant Audio Converter</h1>
- * An advanced, professional-grade audio conversion tool designed for high-end clients.
- * This version introduces granular control over output audio parameters (bitrate, sample rate, channels),
- * flexible output directory selection for batch conversions, and enhanced error diagnostics
- * for a superior user experience.
- *
- * Cette version introduit un contrôle granulaire sur les paramètres audio de sortie (débit binaire,
- * fréquence d'échantillonnage, canaux), une sélection flexible du répertoire de sortie pour les
- * conversions par lots, et des diagnostics d'erreurs améliorés pour une expérience utilisateur supérieure.
- *
- * @author Gemini (Refactored & Enhanced by AI)
- * @version 5.1.0 (Improved FFmpeg Path Handling, Code Quality, Documentation)
- */
 public class AudioConverter extends JFrame {
 
-    // --- UI Constants / Constantes de l'interface utilisateur ---
-    // UI Colors / Couleurs de l'interface utilisateur
-    private static final Color COLOR_PRIMARY_BG = new Color(250, 248, 245);
-    private static final Color COLOR_SECONDARY_PANEL_BG = new Color(240, 235, 230);
-    private static final Color COLOR_ACCENT_PRIMARY = new Color(110, 150, 155);
-    private static final Color COLOR_ACCENT_SUCCESS = new Color(130, 180, 120);
-    private static final Color COLOR_ACCENT_DANGER = new Color(210, 110, 100);
-    private static final Color COLOR_TEXT_MAIN = new Color(60, 60, 60);
-    private static final Color COLOR_TEXT_FIELD_CONTENT = new Color(80, 80, 80);
-    private static final Color COLOR_FIELD_BG_LIGHT = new Color(255, 255, 255);
-    private static final Color COLOR_FIELD_BORDER_SUBTLE = new Color(200, 195, 190);
-    private static final Color COLOR_STATUS_READY = new Color(160, 210, 150);
-    private static final Color COLOR_STATUS_PROCESSING = new Color(255, 200, 120);
-    private static final Color COLOR_STATUS_ERROR = new Color(230, 120, 110);
-    private static final Color COLOR_SHADOW_SUBTLE = new Color(0, 0, 0, 50);
+    // ==================== CONSTANTES DE DESIGN ====================
+    private static final Color PRIMARY_COLOR = new Color(99, 102, 241);
+    private static final Color PRIMARY_DARK = new Color(79, 70, 229);
+    private static final Color BACKGROUND_DARK = new Color(15, 23, 42);
+    private static final Color BACKGROUND_MEDIUM = new Color(30, 41, 59);
+    private static final Color BACKGROUND_LIGHT = new Color(51, 65, 85);
+    private static final Color TEXT_PRIMARY = new Color(248, 250, 252);
+    private static final Color TEXT_SECONDARY = new Color(203, 213, 225);
+    private static final Color SUCCESS_COLOR = new Color(34, 197, 94);
+    private static final Color WARNING_COLOR = new Color(251, 146, 60);
+    private static final Color ERROR_COLOR = new Color(239, 68, 68);
+    private static final Color BORDER_COLOR = new Color(71, 85, 105);
+    private static final Color FIELD_TEXT_COLOR = Color.BLACK; // Texte noir pour les champs
 
-    // UI Dimensions
-    private static final int CORNER_RADIUS_PANEL = 15;
-    private static final int CORNER_RADIUS_FIELD = 10;
-    private static final int CORNER_RADIUS_BUTTON = 12;
+    private static final Font FONT_TITLE = new Font("Segoe UI", Font.BOLD, 28);
+    private static final Font FONT_SUBTITLE = new Font("Segoe UI", Font.PLAIN, 14);
+    private static final Font FONT_BUTTON = new Font("Segoe UI", Font.BOLD, 13);
+    private static final Font FONT_LABEL = new Font("Segoe UI", Font.PLAIN, 12);
+    private static final Font FONT_SMALL = new Font("Segoe UI", Font.PLAIN, 11);
 
-    // Fonts / Polices
-    private static final Font FONT_PRIMARY = new Font("Arial", Font.PLAIN, 14);
-    private static final Font FONT_BUTTON = FONT_PRIMARY.deriveFont(Font.BOLD, 16);
-    private static final Font FONT_TITLE = new Font("Arial", Font.BOLD, 28);
-    private static final Font FONT_STATUS = FONT_PRIMARY.deriveFont(Font.BOLD, 14);
-    private static final Font FONT_FIELD = FONT_PRIMARY.deriveFont(Font.PLAIN, 14);
-    private static final Font FONT_SMALL = FONT_PRIMARY.deriveFont(Font.PLAIN, 11);
-
-    // Supported Audio Formats / Formats audio pris en charge
-    private static final String[] SUPPORTED_FORMATS = {"mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "aiff"};
-    // Channel Options / Options de canal
-    private static final String[] CHANNELS_OPTIONS = {"Original", "Mono", "Stéréo"};
-
-    // Default Background Image URL (Local or Remote) / URL de l'image de fond par défaut (Locale ou distante)
-    private static final String DEFAULT_BACKGROUND_IMAGE_URL = "https://image.noelshack.com/fichiers/2025/22/7/1748758758-codioful-formerly-gradienta-leg68prxa6y-unsplash-1.jpg";
-
-    // --- FFmpeg Path Configuration Constants ---
-    // Preference key for custom FFmpeg path / Clé de préférence pour le chemin FFmpeg personnalisé
-    private static final String PREF_KEY_CUSTOM_FFMPEG_PATH = "customFfmpegPath";
-    // Preference keys for advanced settings / Clés de préférence pour les paramètres avancés
-    private static final String PREF_KEY_CUSTOM_SETTINGS_ENABLED = "customSettingsEnabled";
-    private static final String PREF_KEY_CUSTOM_BITRATE = "customBitrate";
-    private static final String PREF_KEY_CUSTOM_SAMPLERATE = "customSampleRate";
-    private static final String PREF_KEY_CUSTOM_CHANNELS = "customChannels";
-
-    /*
-     * The hardcoded FFmpeg directory path has been removed for security and portability reasons.
-     * Le chemin du répertoire FFmpeg codé en dur a été supprimé pour des raisons de sécurité et de portabilité.
-     * The application will now primarily rely on the user-configured path or the system's PATH environment variable.
-     * L'application s'appuiera désormais principalement sur le chemin configuré par l'utilisateur ou sur la variable d'environnement PATH du système.
-     */
-    // private static final String HARDCODED_FFMPEG_DIRECTORY_PATH = "C:\\Users\\Samyn\\OneDrive\\Applications\\Mes Projets informatiques\\Mes_Projets_Java\\Mes_projets_Informatiques_Java\\Mes_Projets_Logiciels\\AudioConverter";
-
-    // Effective FFmpeg executable path used by the application / Chemin effectif de l'exécutable FFmpeg utilisé par l'application
-    private static String FFMPEG_EXECUTABLE;
-    // User-defined FFmpeg path via the interface / Chemin FFmpeg défini par l'utilisateur via l'interface
-    private static String USER_CUSTOM_FFMPEG_PATH = "";
-    // Details of FFmpeg search for diagnostics / Détails de la recherche de FFmpeg pour les diagnostics
-    private static String LOCAL_FFMPEG_SEARCH_DETAILS = "";
-
-
-    // --- UI Components / Composants de l'interface utilisateur ---
-    private JLabel titleLabel;
-    private JTextArea fileListArea;
-    private JScrollPane fileListScrollPane;
-    private JButton addFilesButton;
-    private JButton clearFilesButton;
-    private JComboBox<String> outputFormatComboBox;
-    private JTextField outputDirectoryField;
-    private JButton browseOutputButton;
-    private JButton convertButton;
-    private JLabel statusLabel;
+    // ==================== COMPOSANTS UI ====================
+    private JPanel mainPanel;
+    private JPanel sidebarPanel;
     private JPanel contentPanel;
-    private JLabel backgroundLabel; // For background image / Pour l'image de fond
-    private JButton advancedSettingsButton;
-    private JPanel advancedSettingsPanel;
-    private JCheckBox customSettingsCheckBox;
-    private JTextField bitrateField;
-    private JTextField sampleRateField;
+    private JPanel headerPanel;
+    private JPanel footerPanel;
+
+    private DefaultListModel<AudioFile> fileListModel;
+    private JList<AudioFile> fileList;
+    private JComboBox<String> formatComboBox;
+    private JComboBox<String> qualityComboBox;
+    private JComboBox<String> sampleRateComboBox;
     private JComboBox<String> channelsComboBox;
-    private JButton ffmpegPathButton;
-    private JLabel ffmpegStatusLabel;
+    private JSlider volumeSlider;
+    private JProgressBar globalProgressBar;
+    private JLabel statusLabel;
+    private JLabel fileCountLabel;
+    private JTextArea logArea;
+    private JButton addFilesButton;
+    private JButton removeFilesButton;
+    private JButton clearAllButton;
+    private JButton convertButton;
+    private JButton stopButton;
+    private JButton settingsButton;
 
+    // ==================== VARIABLES D'ÉTAT ====================
+    private List<AudioFile> audioFiles;
+    private ExecutorService executorService;
+    private volatile boolean isConverting = false;
+    private File outputDirectory;
+    private ConversionSettings settings;
+    private ConversionStatistics statistics;
 
-    // --- Application State / État de l'application ---
-    // List of files selected for conversion / Liste des fichiers sélectionnés pour la conversion
-    private List<File> filesToConvert;
+    // ==================== FORMATS SUPPORTÉS ====================
+    private static final String[] SUPPORTED_INPUT_FORMATS = {
+            "wav", "aiff", "au"
+    };
 
-    /**
-     * Constructor for the AudioConverter application.
-     * Initializes the UI, loads settings, and sets up event listeners.
-     *
-     * Constructeur de l'application AudioConverter.
-     * Initialise l'interface utilisateur, charge les paramètres et configure les écouteurs d'événements.
-     */
+    private static final String[] OUTPUT_FORMATS = {
+            "WAV", "AIFF", "AU"
+    };
+
+    private static final String[] QUALITY_PRESETS = {
+            "Basse (8 bits)", "Moyenne (16 bits)", "Haute (24 bits)", "Maximum (32 bits)"
+    };
+
+    private static final String[] SAMPLE_RATES = {
+            "8000 Hz", "11025 Hz", "16000 Hz", "22050 Hz",
+            "44100 Hz", "48000 Hz", "96000 Hz", "192000 Hz"
+    };
+
+    private static final String[] CHANNEL_OPTIONS = {
+            "Mono (1 canal)", "Stéréo (2 canaux)", "Conserver original"
+    };
+
+    // ==================== CONSTRUCTEUR ====================
     public AudioConverter() {
-        this.filesToConvert = new ArrayList<>();
-        configureFrame();
-        loadBackgroundImage();
-        initComponents();
-        loadAdvancedSettingsFromPreferences(); // Load preferences after initComponents
-        layoutComponents();
-        addEventListeners();
-        pack();
-        setLocationRelativeTo(null); // Center the window / Centrer la fenêtre
-        checkFfmpegOnStartup(); // Check FFmpeg availability on startup / Vérifier la disponibilité de FFmpeg au démarrage
+        initializeVariables();
+        applyModernLookAndFeel();
+        initializeUI();
+        setupEventHandlers();
     }
 
-    /**
-     * Configures the main JFrame properties.
-     * Sets title, default close operation, and initial background color.
-     *
-     * Configure les propriétés principales de la JFrame.
-     * Définit le titre, l'opération de fermeture par défaut et la couleur de fond initiale.
-     */
-    private void configureFrame() {
-        setTitle("Elegant Audio Converter");
+    private void initializeVariables() {
+        audioFiles = new ArrayList<>();
+        fileListModel = new DefaultListModel<>();
+        executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        outputDirectory = new File(System.getProperty("user.home"), "AudioConverter_Output");
+        settings = new ConversionSettings();
+        statistics = new ConversionStatistics();
+
+        if (!outputDirectory.exists()) {
+            outputDirectory.mkdirs();
+        }
+    }
+
+    private void initializeUI() {
+        setTitle("AudioConverter Pro 2025 - Elite Edition");
+        setSize(1400, 900);
+        setMinimumSize(new Dimension(1200, 700));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(800, 600));
-        setBackground(COLOR_PRIMARY_BG);
-        setLayout(new BorderLayout()); // Use BorderLayout for main frame / Utiliser BorderLayout pour le cadre principal
+        setLocationRelativeTo(null);
+
+        mainPanel = new JPanel(new BorderLayout(0, 0));
+        mainPanel.setBackground(BACKGROUND_DARK);
+
+        createHeader();
+        createSidebar();
+        createContent();
+        createFooter();
+
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(sidebarPanel, BorderLayout.WEST);
+        mainPanel.add(contentPanel, BorderLayout.CENTER);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
+
+        setContentPane(mainPanel);
     }
 
-    /**
-     * Loads and sets a background image for the application.
-     * The image is fetched from a URL, and if successful, is scaled and set as the background.
-     *
-     * Charge et définit une image de fond pour l'application.
-     * L'image est récupérée depuis une URL, et si cela réussit, elle est redimensionnée et définie comme arrière-plan.
-     */
-    private void loadBackgroundImage() {
-        backgroundLabel = new JLabel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                if (getIcon() != null) {
-                    Image img = ((ImageIcon) getIcon()).getImage();
-                    // Scale the image to fill the label, maintaining aspect ratio
-                    // Redimensionner l'image pour remplir le JLabel, en maintenant les proportions
-                    int iw = img.getWidth(this);
-                    int ih = img.getHeight(this);
-                    int cw = getWidth();
-                    int ch = getHeight();
-
-                    if (iw <= 0 || ih <= 0 || cw <= 0 || ch <= 0) {
-                        return; // Avoid division by zero or invalid dimensions
-                    }
-
-                    Image scaledImage;
-                    // Calculate scale to cover the component
-                    double scale = Math.max((double) cw / iw, (double) ch / ih);
-                    int scaledWidth = (int) (iw * scale);
-                    int scaledHeight = (int) (ih * scale);
-
-                    // Determine position to center the scaled image
-                    int x = (cw - scaledWidth) / 2;
-                    int y = (ch - scaledHeight) / 2;
-
-                    g.drawImage(img, x, y, scaledWidth, scaledHeight, this);
-                }
-            }
-        };
-        backgroundLabel.setLayout(new BorderLayout()); // Use BorderLayout for components on top of background
-        add(backgroundLabel, BorderLayout.CENTER); // Add to the center of the frame
-
-        new SwingWorker<ImageIcon, Void>() {
-            @Override
-            protected ImageIcon doInBackground() {
-                try {
-                    URL imageUrl = new URL(DEFAULT_BACKGROUND_IMAGE_URL);
-                    return new ImageIcon(ImageIO.read(imageUrl));
-                } catch (IOException e) {
-                    System.err.println("ERROR: Could not load background image from URL: " + DEFAULT_BACKGROUND_IMAGE_URL + " - " + e.getMessage());
-                    // Fallback: Attempt to load a local image if URL fails or is not accessible
-                    // Retour : Tenter de charger une image locale si l'URL échoue ou n'est pas accessible
-                    try {
-                        // Adjust this path for local testing if needed. This assumes a 'resources' directory or similar packaging.
-                        // Ajustez ce chemin pour les tests locaux si nécessaire. Cela suppose un répertoire 'resources' ou un empaquetage similaire.
-                        return new ImageIcon(getClass().getResource("/codioful-formerly-gradienta-leg68prxa6y-unsplash-1.jpg"));
-                    } catch (Exception ex) {
-                        System.err.println("ERROR: Could not load local background image: " + ex.getMessage());
-                        return null; // No image available / Aucune image disponible
-                    }
-                }
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    ImageIcon icon = get();
-                    if (icon != null) {
-                        backgroundLabel.setIcon(icon);
-                        backgroundLabel.repaint(); // Ensure the background is repainted / S'assurer que le fond est repeint
-                    } else {
-                        System.err.println("WARNING: No background image could be loaded. Using default background color.");
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    System.err.println("ERROR: Background image loading interrupted or failed: " + e.getMessage());
-                }
-            }
-        }.execute();
-    }
-
-
-    /**
-     * Initializes all UI components and sets their default properties.
-     *
-     * Initialise tous les composants de l'interface utilisateur et définit leurs propriétés par défaut.
-     */
-    private void initComponents() {
-        // Main content panel setup / Configuration du panneau de contenu principal
-        contentPanel = new JPanel();
-        contentPanel.setOpaque(false); // Make it transparent to show background image
-        contentPanel.setLayout(new GridBagLayout()); // Use GridBagLayout for flexible arrangement
-        contentPanel.setBorder(new EmptyBorder(20, 20, 20, 20)); // Add some padding
-        backgroundLabel.add(contentPanel, BorderLayout.CENTER); // Add to the background label
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8); // Padding between components / Espacement entre les composants
-        gbc.fill = GridBagConstraints.HORIZONTAL; // Fill horizontally by default / Remplir horizontalement par défaut
-
-        // Title Label / Titre
-        titleLabel = new JLabel("Elegant Audio Converter", SwingConstants.CENTER);
-        titleLabel.setFont(FONT_TITLE);
-        titleLabel.setForeground(COLOR_TEXT_MAIN);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 4; // Span across all columns / S'étendre sur toutes les colonnes
-        contentPanel.add(titleLabel, gbc);
-
-        // File List Area / Zone de liste de fichiers
-        fileListArea = new JTextArea(10, 50); // Rows, Columns
-        fileListArea.setEditable(false);
-        fileListArea.setFont(FONT_FIELD);
-        fileListArea.setBackground(COLOR_FIELD_BG_LIGHT);
-        fileListArea.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        fileListArea.setBorder(BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE, 1)); // Subtle border
-        fileListArea.setLineWrap(true);
-        fileListArea.setWrapStyleWord(true);
-        fileListArea.setDropTarget(new FileDropTarget(this::addFiles)); // Enable drag and drop
-        fileListScrollPane = new JScrollPane(fileListArea);
-        fileListScrollPane.setPreferredSize(new Dimension(600, 150));
-        fileListScrollPane.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE, 1),
-                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+    private void createHeader() {
+        headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(BACKGROUND_MEDIUM);
+        headerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
+                BorderFactory.createEmptyBorder(20, 30, 20, 30)
         ));
 
-        gbc.gridy = 1;
-        gbc.gridwidth = 3;
-        gbc.weightx = 1.0; // Allow horizontal expansion
-        contentPanel.add(fileListScrollPane, gbc);
+        JPanel titlePanel = new JPanel(new GridLayout(2, 1, 0, 5));
+        titlePanel.setOpaque(false);
 
-        // File Management Buttons / Boutons de gestion des fichiers
-        JPanel fileButtonsPanel = new JPanel(new GridLayout(2, 1, 0, 10)); // Vertical layout with gap
-        fileButtonsPanel.setOpaque(false);
+        JLabel titleLabel = new JLabel("AudioConverter Pro");
+        titleLabel.setFont(FONT_TITLE);
+        titleLabel.setForeground(TEXT_PRIMARY);
 
-        addFilesButton = createStyledButton("Ajouter Fichiers / Add Files", COLOR_ACCENT_PRIMARY);
-        clearFilesButton = createStyledButton("Effacer Liste / Clear List", COLOR_ACCENT_DANGER);
+        JLabel subtitleLabel = new JLabel("Convertisseur Audio Professionnel - Edition Elite 2025");
+        subtitleLabel.setFont(FONT_SUBTITLE);
+        subtitleLabel.setForeground(TEXT_SECONDARY);
 
-        fileButtonsPanel.add(addFilesButton);
-        fileButtonsPanel.add(clearFilesButton);
-        gbc.gridx = 3;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.BOTH; // Fill both vertically and horizontally
-        contentPanel.add(fileButtonsPanel, gbc);
+        titlePanel.add(titleLabel);
+        titlePanel.add(subtitleLabel);
 
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        actionPanel.setOpaque(false);
 
-        // Output Format Selection / Sélection du format de sortie
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE; // Do not fill horizontally
+        settingsButton = createModernButton("Paramètres", PRIMARY_COLOR, false);
+        JButton aboutButton = createModernButton("À propos", BACKGROUND_LIGHT, false);
+        JButton helpButton = createModernButton("Aide", BACKGROUND_LIGHT, false);
 
-        contentPanel.add(new JLabel("Format de Sortie / Output Format:"), gbc);
-        outputFormatComboBox = new JComboBox<>(SUPPORTED_FORMATS);
-        outputFormatComboBox.setFont(FONT_FIELD);
-        outputFormatComboBox.setBackground(COLOR_FIELD_BG_LIGHT);
-        outputFormatComboBox.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        outputFormatComboBox.setRenderer(new CustomComboBoxRenderer(COLOR_FIELD_BG_LIGHT, COLOR_TEXT_FIELD_CONTENT));
-        outputFormatComboBox.setPreferredSize(new Dimension(150, 30));
-        gbc.gridx = 1;
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        contentPanel.add(outputFormatComboBox, gbc);
+        aboutButton.addActionListener(e -> showAboutDialog());
+        helpButton.addActionListener(e -> showHelpDialog());
+        settingsButton.addActionListener(e -> showSettingsDialog());
 
+        actionPanel.add(helpButton);
+        actionPanel.add(aboutButton);
+        actionPanel.add(settingsButton);
 
-        // Output Directory / Répertoire de sortie
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        contentPanel.add(new JLabel("Répertoire de Sortie / Output Directory:"), gbc);
-
-        outputDirectoryField = new JTextField();
-        outputDirectoryField.setEditable(false);
-        outputDirectoryField.setFont(FONT_FIELD);
-        outputDirectoryField.setBackground(COLOR_FIELD_BG_LIGHT);
-        outputDirectoryField.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        outputDirectoryField.setBorder(BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE, 1));
-        gbc.gridx = 1;
-        gbc.gridwidth = 2; // Span two columns
-        gbc.weightx = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        contentPanel.add(outputDirectoryField, gbc);
-
-        browseOutputButton = createStyledButton("Parcourir / Browse", COLOR_ACCENT_PRIMARY);
-        gbc.gridx = 3;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.0;
-        gbc.fill = GridBagConstraints.NONE;
-        contentPanel.add(browseOutputButton, gbc);
-
-        // Advanced Settings Button / Bouton Paramètres Avancés
-        advancedSettingsButton = createStyledButton("Paramètres Avancés / Advanced Settings", COLOR_ACCENT_PRIMARY);
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        contentPanel.add(advancedSettingsButton, gbc);
-
-        // Advanced Settings Panel (initially hidden) / Panneau des paramètres avancés (initialement caché)
-        advancedSettingsPanel = new JPanel(new GridBagLayout());
-        advancedSettingsPanel.setOpaque(false);
-        advancedSettingsPanel.setBorder(BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE),
-                "Paramètres Avancés / Advanced Settings",
-                0, 0, FONT_PRIMARY.deriveFont(Font.BOLD, 12), COLOR_TEXT_MAIN));
-        advancedSettingsPanel.setVisible(false); // Hidden by default / Caché par défaut
-
-        GridBagConstraints gbcAdvanced = new GridBagConstraints();
-        gbcAdvanced.insets = new Insets(5, 5, 5, 5);
-        gbcAdvanced.fill = GridBagConstraints.HORIZONTAL;
-
-        // Custom Settings CheckBox / Case à cocher Paramètres personnalisés
-        customSettingsCheckBox = new JCheckBox("Activer les paramètres personnalisés / Enable Custom Settings");
-        customSettingsCheckBox.setFont(FONT_FIELD);
-        customSettingsCheckBox.setOpaque(false);
-        customSettingsCheckBox.setForeground(COLOR_TEXT_MAIN);
-        gbcAdvanced.gridx = 0;
-        gbcAdvanced.gridy = 0;
-        gbcAdvanced.gridwidth = 2;
-        advancedSettingsPanel.add(customSettingsCheckBox, gbcAdvanced);
-
-        // Bitrate Field / Champ Débit binaire
-        gbcAdvanced.gridy = 1;
-        gbcAdvanced.gridwidth = 1;
-        advancedSettingsPanel.add(new JLabel("Débit Binaire (kbps) / Bitrate (kbps):"), gbcAdvanced);
-        bitrateField = new JTextField("192"); // Default value / Valeur par défaut
-        bitrateField.setFont(FONT_FIELD);
-        bitrateField.setBackground(COLOR_FIELD_BG_LIGHT);
-        bitrateField.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        bitrateField.setBorder(BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE, 1));
-        gbcAdvanced.gridx = 1;
-        advancedSettingsPanel.add(bitrateField, gbcAdvanced);
-
-        // Sample Rate Field / Champ Fréquence d'échantillonnage
-        gbcAdvanced.gridx = 0;
-        gbcAdvanced.gridy = 2;
-        advancedSettingsPanel.add(new JLabel("Fréquence d'Échantillonnage (Hz) / Sample Rate (Hz):"), gbcAdvanced);
-        sampleRateField = new JTextField("44100"); // Default value / Valeur par défaut
-        sampleRateField.setFont(FONT_FIELD);
-        sampleRateField.setBackground(COLOR_FIELD_BG_LIGHT);
-        sampleRateField.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        sampleRateField.setBorder(BorderFactory.createLineBorder(COLOR_FIELD_BORDER_SUBTLE, 1));
-        gbcAdvanced.gridx = 1;
-        advancedSettingsPanel.add(sampleRateField, gbcAdvanced);
-
-        // Channels ComboBox / Liste déroulante des canaux
-        gbcAdvanced.gridx = 0;
-        gbcAdvanced.gridy = 3;
-        advancedSettingsPanel.add(new JLabel("Canaux / Channels:"), gbcAdvanced);
-        channelsComboBox = new JComboBox<>(CHANNELS_OPTIONS);
-        channelsComboBox.setFont(FONT_FIELD);
-        channelsComboBox.setBackground(COLOR_FIELD_BG_LIGHT);
-        channelsComboBox.setForeground(COLOR_TEXT_FIELD_CONTENT);
-        channelsComboBox.setRenderer(new CustomComboBoxRenderer(COLOR_FIELD_BG_LIGHT, COLOR_TEXT_FIELD_CONTENT));
-        gbcAdvanced.gridx = 1;
-        advancedSettingsPanel.add(channelsComboBox, gbcAdvanced);
-
-        gbc.gridy = 5; // Position below advanced settings toggle button
-        gbc.gridwidth = 4;
-        contentPanel.add(advancedSettingsPanel, gbc);
-
-        // FFmpeg Path Configuration / Configuration du chemin FFmpeg
-        ffmpegPathButton = createStyledButton("Configurer Chemin FFmpeg / Configure FFmpeg Path", COLOR_ACCENT_PRIMARY);
-        gbc.gridx = 0;
-        gbc.gridy = 6;
-        gbc.gridwidth = 4;
-        contentPanel.add(ffmpegPathButton, gbc);
-
-        ffmpegStatusLabel = new JLabel("FFmpeg Status: Checking...", SwingConstants.CENTER);
-        ffmpegStatusLabel.setFont(FONT_STATUS);
-        gbc.gridy = 7;
-        contentPanel.add(ffmpegStatusLabel, gbc);
-
-        // Convert Button / Bouton Convertir
-        convertButton = createStyledButton("Convertir Audio / Convert Audio", COLOR_ACCENT_SUCCESS);
-        gbc.gridx = 0;
-        gbc.gridy = 8;
-        gbc.gridwidth = 4;
-        contentPanel.add(convertButton, gbc);
-
-        // Status Label / État de la conversion
-        statusLabel = new JLabel("Prêt / Ready", SwingConstants.CENTER);
-        statusLabel.setFont(FONT_STATUS);
-        statusLabel.setForeground(COLOR_STATUS_READY);
-        gbc.gridx = 0;
-        gbc.gridy = 9;
-        gbc.gridwidth = 4;
-        contentPanel.add(statusLabel, gbc);
+        headerPanel.add(titlePanel, BorderLayout.WEST);
+        headerPanel.add(actionPanel, BorderLayout.EAST);
     }
 
-    /**
-     * Lays out the UI components using GridBagLayout within the content panel.
-     * This method is called after all components are initialized.
-     *
-     * Dispose les composants de l'interface utilisateur en utilisant GridBagLayout dans le panneau de contenu.
-     * Cette méthode est appelée après l'initialisation de tous les composants.
-     */
-    private void layoutComponents() {
-        // This method primarily defines the layout. Since initComponents already adds components
-        // with GridBagConstraints, this method can be used for any final adjustments or
-        // if layout changes are required dynamically.
-        // For now, it serves as a placeholder to emphasize layout management.
+    private void createSidebar() {
+        sidebarPanel = new JPanel();
+        sidebarPanel.setLayout(new BoxLayout(sidebarPanel, BoxLayout.Y_AXIS));
+        sidebarPanel.setBackground(BACKGROUND_MEDIUM);
+        sidebarPanel.setPreferredSize(new Dimension(320, 0));
+        sidebarPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 0, 1, BORDER_COLOR),
+                BorderFactory.createEmptyBorder(20, 20, 20, 20)
+        ));
+
+        sidebarPanel.add(createSectionTitle("Gestion des fichiers"));
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        addFilesButton = createModernButton("+ Ajouter des fichiers", PRIMARY_COLOR, true);
+        addFilesButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(addFilesButton);
+        sidebarPanel.add(Box.createVerticalStrut(10));
+
+        removeFilesButton = createModernButton("- Retirer la sélection", WARNING_COLOR, true);
+        removeFilesButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(removeFilesButton);
+        sidebarPanel.add(Box.createVerticalStrut(10));
+
+        clearAllButton = createModernButton("Vider la liste", ERROR_COLOR, true);
+        clearAllButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(clearAllButton);
+
+        sidebarPanel.add(Box.createVerticalStrut(30));
+        sidebarPanel.add(createSeparator());
+        sidebarPanel.add(Box.createVerticalStrut(30));
+
+        sidebarPanel.add(createSectionTitle("Paramètres de conversion"));
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        sidebarPanel.add(createLabel("Format de sortie :"));
+        sidebarPanel.add(Box.createVerticalStrut(8));
+        formatComboBox = createModernComboBox(OUTPUT_FORMATS);
+        formatComboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(formatComboBox);
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        sidebarPanel.add(createLabel("Qualité audio :"));
+        sidebarPanel.add(Box.createVerticalStrut(8));
+        qualityComboBox = createModernComboBox(QUALITY_PRESETS);
+        qualityComboBox.setSelectedIndex(1); // 16 bits par défaut
+        qualityComboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(qualityComboBox);
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        sidebarPanel.add(createLabel("Taux d'échantillonnage :"));
+        sidebarPanel.add(Box.createVerticalStrut(8));
+        sampleRateComboBox = createModernComboBox(SAMPLE_RATES);
+        sampleRateComboBox.setSelectedIndex(4); // 44100 Hz par défaut
+        sampleRateComboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(sampleRateComboBox);
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        sidebarPanel.add(createLabel("Canaux audio :"));
+        sidebarPanel.add(Box.createVerticalStrut(8));
+        channelsComboBox = createModernComboBox(CHANNEL_OPTIONS);
+        channelsComboBox.setSelectedIndex(2); // Conserver original
+        channelsComboBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(channelsComboBox);
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        sidebarPanel.add(createLabel("Ajustement du volume :"));
+        sidebarPanel.add(Box.createVerticalStrut(8));
+
+        volumeSlider = new JSlider(0, 200, 100);
+        volumeSlider.setOpaque(false);
+        volumeSlider.setForeground(PRIMARY_COLOR);
+        volumeSlider.setMajorTickSpacing(50);
+        volumeSlider.setMinorTickSpacing(10);
+        volumeSlider.setPaintTicks(true);
+        volumeSlider.setPaintLabels(true);
+        volumeSlider.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        Dictionary<Integer, JLabel> labelTable = new Hashtable<>();
+        labelTable.put(0, createSliderLabel("0%"));
+        labelTable.put(100, createSliderLabel("100%"));
+        labelTable.put(200, createSliderLabel("200%"));
+        volumeSlider.setLabelTable(labelTable);
+
+        sidebarPanel.add(volumeSlider);
+
+        sidebarPanel.add(Box.createVerticalStrut(30));
+        sidebarPanel.add(createSeparator());
+        sidebarPanel.add(Box.createVerticalStrut(30));
+
+        sidebarPanel.add(createSectionTitle("Statistiques"));
+        sidebarPanel.add(Box.createVerticalStrut(15));
+
+        JPanel statsPanel = createStatsPanel();
+        statsPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sidebarPanel.add(statsPanel);
+
+        sidebarPanel.add(Box.createVerticalGlue());
     }
 
+    private void createContent() {
+        contentPanel = new JPanel(new BorderLayout(0, 0));
+        contentPanel.setBackground(BACKGROUND_DARK);
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-    /**
-     * Adds event listeners to interactive UI components.
-     * Handles file addition, clearing, output directory Browse, advanced settings toggling,
-     * FFmpeg path configuration, and audio conversion.
-     *
-     * Ajoute des écouteurs d'événements aux composants interactifs de l'interface utilisateur.
-     * Gère l'ajout et l'effacement des fichiers, la navigation dans le répertoire de sortie,
-     * l'activation/désactivation des paramètres avancés, la configuration du chemin FFmpeg et la conversion audio.
-     */
-    private void addEventListeners() {
-        addFilesButton.addActionListener(e -> chooseFiles());
-        clearFilesButton.addActionListener(e -> clearFileList());
-        browseOutputButton.addActionListener(e -> chooseOutputDirectory());
-        convertButton.addActionListener(e -> startConversionProcess());
-        advancedSettingsButton.addActionListener(e -> toggleAdvancedSettingsPanel());
-        customSettingsCheckBox.addActionListener(e -> toggleAdvancedSettings(customSettingsCheckBox.isSelected()));
-        ffmpegPathButton.addActionListener(e -> configureFfmpegPath());
+        JPanel fileListPanel = new JPanel(new BorderLayout(0, 15));
+        fileListPanel.setOpaque(false);
 
-        // Allow FFmpeg status label to show details on click
-        ffmpegStatusLabel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (LOCAL_FFMPEG_SEARCH_DETAILS != null && !LOCAL_FFMPEG_SEARCH_DETAILS.isEmpty()) {
-                    JOptionPane.showMessageDialog(AudioConverter.this,
-                            LOCAL_FFMPEG_SEARCH_DETAILS,
-                            "FFmpeg Path Details / Détails du chemin FFmpeg",
-                            JOptionPane.INFORMATION_MESSAGE);
-                }
-            }
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (LOCAL_FFMPEG_SEARCH_DETAILS != null && !LOCAL_FFMPEG_SEARCH_DETAILS.isEmpty()) {
-                    ffmpegStatusLabel.setToolTipText("Click to see FFmpeg path search details / Cliquez pour voir les détails de la recherche du chemin FFmpeg");
-                }
-            }
+        JLabel fileListTitle = createSectionTitle("Fichiers à convertir");
+        fileCountLabel = createLabel("0 fichier(s)");
+        fileCountLabel.setFont(FONT_SUBTITLE);
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                ffmpegStatusLabel.setToolTipText(null);
-            }
-        });
+        JPanel titleRow = new JPanel(new BorderLayout());
+        titleRow.setOpaque(false);
+        titleRow.add(fileListTitle, BorderLayout.WEST);
+        titleRow.add(fileCountLabel, BorderLayout.EAST);
 
-        // Add drag and drop functionality to the entire frame
-        // Ajouter la fonctionnalité de glisser-déposer à l'ensemble du cadre
-        setTransferHandler(new TransferHandler() {
-            @Override
-            public boolean canImport(TransferSupport support) {
-                return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
-            }
+        fileListPanel.add(titleRow, BorderLayout.NORTH);
 
-            @Override
-            public boolean importData(TransferSupport support) {
-                if (!canImport(support)) {
-                    return false;
-                }
-                Transferable t = support.getTransferable();
-                try {
-                    @SuppressWarnings("unchecked")
-                    List<File> files = (List<File>) t.getTransferData(DataFlavor.javaFileListFlavor);
-                    addFiles(files);
-                    return true;
-                } catch (UnsupportedFlavorException | IOException e) {
-                    System.err.println("ERROR: Drag and drop failed: " + e.getMessage());
-                    return false;
-                }
-            }
-        });
+        fileList = new JList<>(fileListModel);
+        fileList.setBackground(BACKGROUND_MEDIUM);
+        fileList.setForeground(TEXT_PRIMARY);
+        fileList.setFont(FONT_LABEL);
+        fileList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        fileList.setCellRenderer(new AudioFileCellRenderer());
+        fileList.setFixedCellHeight(80);
+
+        JScrollPane fileScrollPane = new JScrollPane(fileList);
+        fileScrollPane.setBorder(createModernBorder());
+        fileScrollPane.getViewport().setBackground(BACKGROUND_MEDIUM);
+        fileScrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        fileScrollPane.getHorizontalScrollBar().setUI(new ModernScrollBarUI());
+
+        fileListPanel.add(fileScrollPane, BorderLayout.CENTER);
+
+        JPanel logPanel = new JPanel(new BorderLayout(0, 15));
+        logPanel.setOpaque(false);
+        logPanel.setPreferredSize(new Dimension(0, 200));
+
+        JLabel logTitle = createSectionTitle("Journal de conversion");
+        logPanel.add(logTitle, BorderLayout.NORTH);
+
+        logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setBackground(BACKGROUND_MEDIUM);
+        logArea.setForeground(TEXT_SECONDARY);
+        logArea.setFont(FONT_SMALL);
+        logArea.setLineWrap(true);
+        logArea.setWrapStyleWord(true);
+        logArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JScrollPane logScrollPane = new JScrollPane(logArea);
+        logScrollPane.setBorder(createModernBorder());
+        logScrollPane.getVerticalScrollBar().setUI(new ModernScrollBarUI());
+        logScrollPane.getHorizontalScrollBar().setUI(new ModernScrollBarUI());
+
+        logPanel.add(logScrollPane, BorderLayout.CENTER);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, fileListPanel, logPanel);
+        splitPane.setResizeWeight(0.6);
+        splitPane.setDividerSize(8);
+        splitPane.setBorder(null);
+        splitPane.setOpaque(false);
+        splitPane.setUI(new ModernSplitPaneUI());
+
+        contentPanel.add(splitPane, BorderLayout.CENTER);
     }
 
-    /**
-     * Creates a styled JButton with common properties.
-     *
-     * Crée un JButton stylisé avec des propriétés communes.
-     *
-     * @param text The button text. / Le texte du bouton.
-     * @param bgColor The background color. / La couleur de fond.
-     * @return A styled JButton instance. / Une instance de JButton stylisé.
-     */
-    private JButton createStyledButton(String text, Color bgColor) {
-        JButton button = new JButton(text);
+    private void createFooter() {
+        footerPanel = new JPanel(new BorderLayout(20, 0));
+        footerPanel.setBackground(BACKGROUND_MEDIUM);
+        footerPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(1, 0, 0, 0, BORDER_COLOR),
+                BorderFactory.createEmptyBorder(20, 30, 20, 30)
+        ));
+
+        JPanel progressPanel = new JPanel(new BorderLayout(0, 10));
+        progressPanel.setOpaque(false);
+
+        statusLabel = createLabel("Prêt à convertir");
+        statusLabel.setFont(FONT_SUBTITLE);
+        progressPanel.add(statusLabel, BorderLayout.NORTH);
+
+        globalProgressBar = new JProgressBar(0, 100);
+        globalProgressBar.setStringPainted(true);
+        globalProgressBar.setFont(FONT_LABEL);
+        globalProgressBar.setPreferredSize(new Dimension(0, 30));
+        globalProgressBar.setBackground(BACKGROUND_LIGHT);
+        globalProgressBar.setForeground(PRIMARY_COLOR);
+        globalProgressBar.setBorder(createModernBorder());
+        globalProgressBar.setUI(new ModernProgressBarUI());
+
+        progressPanel.add(globalProgressBar, BorderLayout.CENTER);
+
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 0));
+        controlPanel.setOpaque(false);
+
+        convertButton = createModernButton("CONVERTIR", SUCCESS_COLOR, false);
+        convertButton.setPreferredSize(new Dimension(180, 45));
+        convertButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        stopButton = createModernButton("ARRÊTER", ERROR_COLOR, false);
+        stopButton.setPreferredSize(new Dimension(150, 45));
+        stopButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        stopButton.setEnabled(false);
+
+        controlPanel.add(stopButton);
+        controlPanel.add(convertButton);
+
+        footerPanel.add(progressPanel, BorderLayout.CENTER);
+        footerPanel.add(controlPanel, BorderLayout.EAST);
+    }
+
+    // ==================== COMPOSANTS MODERNES ====================
+
+    private JButton createModernButton(String text, Color color, boolean fullWidth) {
+        JButton button = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+
+                if (getModel().isPressed()) {
+                    g2.setColor(color.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(color.brighter());
+                } else {
+                    g2.setColor(color);
+                }
+
+                if (!isEnabled()) {
+                    g2.setColor(BACKGROUND_LIGHT);
+                }
+
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+
+                super.paintComponent(g);
+            }
+        };
+
         button.setFont(FONT_BUTTON);
-        button.setBackground(bgColor);
-        button.setForeground(Color.WHITE);
+        button.setForeground(TEXT_PRIMARY);
         button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20)); // Padding
-        button.putClientProperty("JButton.buttonType", "roundRect"); // For some LaF to round corners
+        button.setBorderPainted(false);
+        button.setContentAreaFilled(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setPreferredSize(new Dimension(fullWidth ? 280 : 140, 40));
+        if (fullWidth) {
+            button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        }
         return button;
     }
 
-    /**
-     * Toggles the visibility of the advanced settings panel.
-     *
-     * Bascule la visibilité du panneau des paramètres avancés.
-     */
-    private void toggleAdvancedSettingsPanel() {
-        boolean isVisible = advancedSettingsPanel.isVisible();
-        advancedSettingsPanel.setVisible(!isVisible);
-        // Re-pack and re-validate to adjust layout / Re-empaqueter et revalider pour ajuster la mise en page
-        this.revalidate();
-        this.repaint();
-        saveAdvancedSettingsToPreferences(); // Save state when toggled / Sauvegarder l'état lors du basculement
+    private JComboBox<String> createModernComboBox(String[] items) {
+        JComboBox<String> comboBox = new JComboBox<>(items);
+        comboBox.setFont(FONT_LABEL);
+        comboBox.setBackground(Color.WHITE); // Fond blanc
+        comboBox.setForeground(FIELD_TEXT_COLOR); // Texte noir
+        comboBox.setBorder(createModernBorder());
+        comboBox.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        comboBox.setPreferredSize(new Dimension(0, 35));
+        comboBox.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        // Rendre le texte de la liste déroulante également noir
+        comboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (!isSelected) {
+                    setForeground(FIELD_TEXT_COLOR);
+                    setBackground(Color.WHITE);
+                }
+                return this;
+            }
+        });
+        
+        return comboBox;
     }
 
-    /**
-     * Enables or disables the advanced settings input fields based on the provided state.
-     *
-     * Active ou désactive les champs de saisie des paramètres avancés en fonction de l'état fourni.
-     *
-     * @param enable True to enable, false to disable. / Vrai pour activer, faux pour désactiver.
-     */
-    private void toggleAdvancedSettings(boolean enable) {
-        bitrateField.setEnabled(enable);
-        sampleRateField.setEnabled(enable);
-        channelsComboBox.setEnabled(enable);
-        // Update background/foreground based on enabled state for visual feedback
-        // Mettre à jour le fond/premier plan en fonction de l'état activé pour un retour visuel
-        bitrateField.setBackground(enable ? COLOR_FIELD_BG_LIGHT : Color.LIGHT_GRAY);
-        sampleRateField.setBackground(enable ? COLOR_FIELD_BG_LIGHT : Color.LIGHT_GRAY);
-        channelsComboBox.setBackground(enable ? COLOR_FIELD_BG_LIGHT : Color.LIGHT_GRAY);
-
-        bitrateField.setForeground(enable ? COLOR_TEXT_FIELD_CONTENT : Color.DARK_GRAY);
-        sampleRateField.setForeground(enable ? COLOR_TEXT_FIELD_CONTENT : Color.DARK_GRAY);
-        channelsComboBox.setForeground(enable ? COLOR_TEXT_FIELD_CONTENT : Color.DARK_GRAY);
-
-        if (!enable) {
-            // Reset to default values when disabled
-            // Réinitialiser aux valeurs par défaut lorsque désactivé
-            bitrateField.setText("192");
-            sampleRateField.setText("44100");
-            channelsComboBox.setSelectedItem("Original");
-        }
+    private JLabel createLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(FONT_LABEL);
+        label.setForeground(TEXT_SECONDARY);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return label;
     }
 
-    /**
-     * Displays a file chooser dialog to select audio files for conversion.
-     * Adds selected files to the list if they are valid audio files.
-     *
-     * Affiche une boîte de dialogue de sélection de fichiers pour choisir les fichiers audio à convertir.
-     * Ajoute les fichiers sélectionnés à la liste s'ils sont des fichiers audio valides.
-     */
-    private void chooseFiles() {
+    private JLabel createSliderLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(FONT_SMALL);
+        label.setForeground(TEXT_SECONDARY);
+        return label;
+    }
+
+    private JLabel createSectionTitle(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        label.setForeground(TEXT_PRIMARY);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return label;
+    }
+
+    private JSeparator createSeparator() {
+        JSeparator separator = new JSeparator();
+        separator.setForeground(BORDER_COLOR);
+        separator.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        separator.setAlignmentX(Component.LEFT_ALIGNMENT);
+        return separator;
+    }
+
+    private Border createModernBorder() {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        );
+    }
+
+    private JPanel createStatsPanel() {
+        JPanel panel = new JPanel(new GridLayout(4, 2, 10, 10));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                createModernBorder(),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        panel.add(createLabel("Total converti :"));
+        statistics.totalConvertedLabel = createLabel("0");
+        panel.add(statistics.totalConvertedLabel);
+
+        panel.add(createLabel("Réussis :"));
+        statistics.successLabel = createLabel("0");
+        statistics.successLabel.setForeground(SUCCESS_COLOR);
+        panel.add(statistics.successLabel);
+
+        panel.add(createLabel("Échoués :"));
+        statistics.failedLabel = createLabel("0");
+        statistics.failedLabel.setForeground(ERROR_COLOR);
+        panel.add(statistics.failedLabel);
+
+        panel.add(createLabel("Taille totale :"));
+        statistics.totalSizeLabel = createLabel("0 MB");
+        panel.add(statistics.totalSizeLabel);
+
+        return panel;
+    }
+
+    // ==================== EVENTS ====================
+
+    private void setupEventHandlers() {
+        addFilesButton.addActionListener(e -> addFiles());
+        removeFilesButton.addActionListener(e -> removeSelectedFiles());
+        clearAllButton.addActionListener(e -> clearAllFiles());
+        convertButton.addActionListener(e -> startConversion());
+        stopButton.addActionListener(e -> stopConversion());
+
+        new FileDrop(fileList, files -> {
+            for (File file : files) {
+                if (isAudioFile(file)) {
+                    addAudioFile(file);
+                }
+            }
+            updateFileCount();
+        });
+    }
+
+    private void addFiles() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setMultiSelectionEnabled(true); // Allow multiple file selection
-        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY); // Only allow files to be selected
-        // Restrict file types (optional, can be done by checking extensions later)
-        // Restreindre les types de fichiers (facultatif, peut être fait en vérifiant les extensions plus tard)
+        fileChooser.setMultiSelectionEnabled(true);
         fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-                "Audio Files", "mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "aiff"));
+                "Fichiers audio (" + String.join(", ", SUPPORTED_INPUT_FORMATS) + ")",
+                SUPPORTED_INPUT_FORMATS
+        ));
 
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            List<File> selectedFiles = Arrays.asList(fileChooser.getSelectedFiles());
-            addFiles(selectedFiles);
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File[] selectedFiles = fileChooser.getSelectedFiles();
+            for (File file : selectedFiles) {
+                addAudioFile(file);
+            }
+            updateFileCount();
+            log("Ajout de " + selectedFiles.length + " fichier(s).");
         }
     }
 
-    /**
-     * Adds files to the conversion list and updates the display.
-     * Filters out non-audio files based on their extensions.
-     *
-     * Ajoute des fichiers à la liste de conversion et met à jour l'affichage.
-     * Filtre les fichiers non-audio en fonction de leurs extensions.
-     *
-     * @param files A list of files to add. / Une liste de fichiers à ajouter.
-     */
-    private void addFiles(List<File> files) {
-        for (File file : files) {
-            String fileName = file.getName();
-            String fileExtension = "";
-            int dotIndex = fileName.lastIndexOf('.');
-            if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
-                fileExtension = fileName.substring(dotIndex + 1).toLowerCase();
-            }
+    private void addAudioFile(File file) {
+        AudioFile audioFile = new AudioFile(file);
+        audioFiles.add(audioFile);
+        fileListModel.addElement(audioFile);
+    }
 
-            // Check if the file extension is in our supported formats list
-            // Vérifier si l'extension du fichier est dans notre liste de formats pris en charge
-            if (Arrays.asList(SUPPORTED_FORMATS).contains(fileExtension)) {
-                if (!filesToConvert.contains(file)) { // Avoid duplicates / Éviter les doublons
-                    filesToConvert.add(file);
-                }
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Skipping unsupported file: " + fileName + "\nFormats supported: " + String.join(", ", SUPPORTED_FORMATS),
-                        "Unsupported File / Fichier non pris en charge",
-                        JOptionPane.WARNING_MESSAGE);
-            }
+    private void removeSelectedFiles() {
+        List<AudioFile> selectedFiles = fileList.getSelectedValuesList();
+        if (selectedFiles.isEmpty()) {
+            showWarning("Aucun fichier sélectionné.");
+            return;
         }
-        updateFileListDisplay();
+        for (AudioFile file : selectedFiles) {
+            audioFiles.remove(file);
+            fileListModel.removeElement(file);
+        }
+        updateFileCount();
+        log("Suppression de " + selectedFiles.size() + " fichier(s).");
     }
 
-    /**
-     * Clears the list of files selected for conversion and updates the display.
-     *
-     * Efface la liste des fichiers sélectionnés pour la conversion et met à jour l'affichage.
-     */
-    private void clearFileList() {
-        filesToConvert.clear();
-        updateFileListDisplay();
-    }
+    private void clearAllFiles() {
+        if (audioFiles.isEmpty()) return;
 
-    /**
-     * Updates the JTextArea to show the current list of files to be converted.
-     *
-     * Met à jour la JTextArea pour afficher la liste actuelle des fichiers à convertir.
-     */
-    private void updateFileListDisplay() {
-        if (filesToConvert.isEmpty()) {
-            fileListArea.setText("Aucun fichier sélectionné. Glissez-déposez ou cliquez sur 'Ajouter Fichiers'.\n" +
-                                 "No files selected. Drag & drop or click 'Add Files'.");
-        } else {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < filesToConvert.size(); i++) {
-                sb.append(i + 1).append(". ").append(filesToConvert.get(i).getName()).append("\n");
-            }
-            fileListArea.setText(sb.toString());
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                "Voulez-vous vraiment effacer tous les fichiers ?",
+                "Confirmation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+        if (result == JOptionPane.YES_OPTION) {
+            audioFiles.clear();
+            fileListModel.clear();
+            updateFileCount();
+            log("Tous les fichiers ont été effacés.");
         }
     }
 
-    /**
-     * Displays a directory chooser dialog to select the output directory.
-     *
-     * Affiche une boîte de dialogue de sélection de répertoire pour choisir le répertoire de sortie.
-     */
-    private void chooseOutputDirectory() {
-        JFileChooser dirChooser = new JFileChooser();
-        dirChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY); // Only allow directories
-        dirChooser.setAcceptAllFileFilterUsed(false); // Disable "All Files" filter
-
-        int result = dirChooser.showSaveDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedDirectory = dirChooser.getSelectedFile();
-            outputDirectoryField.setText(selectedDirectory.getAbsolutePath());
-        }
-    }
-
-    /**
-     * Initiates the audio conversion process.
-     * Validates inputs and executes FFmpeg commands for each selected file in a SwingWorker.
-     *
-     * Lance le processus de conversion audio.
-     * Valide les entrées et exécute les commandes FFmpeg pour chaque fichier sélectionné dans un SwingWorker.
-     */
-    private void startConversionProcess() {
-        if (filesToConvert.isEmpty()) {
-            setStatus("ERREUR: Aucun fichier à convertir / ERROR: No files to convert.", COLOR_STATUS_ERROR);
+    private void startConversion() {
+        if (audioFiles.isEmpty()) {
+            showWarning("Aucun fichier à convertir.");
             return;
         }
+        if (isConverting) return;
 
-        String outputDir = outputDirectoryField.getText();
-        if (outputDir.isEmpty()) {
-            setStatus("ERREUR: Veuillez sélectionner un répertoire de sortie / ERROR: Please select an output directory.", COLOR_STATUS_ERROR);
-            return;
-        }
+        isConverting = true;
+        convertButton.setEnabled(false);
+        stopButton.setEnabled(true);
+        addFilesButton.setEnabled(false);
+        removeFilesButton.setEnabled(false);
+        clearAllButton.setEnabled(false);
 
-        File outputDirectory = new File(outputDir);
-        if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
-            setStatus("ERREUR: Impossible de créer le répertoire de sortie / ERROR: Could not create output directory.", COLOR_STATUS_ERROR);
-            return;
-        }
-        if (!outputDirectory.canWrite()) {
-            setStatus("ERREUR: Le répertoire de sortie n'est pas inscriptible / ERROR: Output directory is not writable.", COLOR_STATUS_ERROR);
-            return;
-        }
+        globalProgressBar.setValue(0);
+        statusLabel.setText("Conversion en cours...");
+        log("Démarrage de la conversion de " + audioFiles.size() + " fichier(s).");
 
-        // Re-check FFmpeg before starting conversion, in case it was moved/deleted
-        // Revérifier FFmpeg avant de lancer la conversion, au cas où il aurait été déplacé/supprimé
-        if (!isFfmpegAvailable()) {
-            setStatus("ERREUR: FFmpeg non trouvé ou non exécutable. Veuillez configurer le chemin. / ERROR: FFmpeg not found or not executable. Please configure path.", COLOR_STATUS_ERROR);
-            return;
-        }
-
-        String outputFormat = (String) outputFormatComboBox.getSelectedItem();
-        boolean useCustomSettings = customSettingsCheckBox.isSelected();
-
-        // Validate custom settings if enabled
-        // Valider les paramètres personnalisés si activés
-        if (useCustomSettings) {
-            if (!bitrateField.getText().matches("\\d+") || Integer.parseInt(bitrateField.getText()) <= 0) {
-                setStatus("ERREUR: Débit binaire invalide. Doit être un nombre positif. / ERROR: Invalid bitrate. Must be a positive number.", COLOR_STATUS_ERROR);
-                return;
-            }
-            if (!sampleRateField.getText().matches("\\d+") || Integer.parseInt(sampleRateField.getText()) <= 0) {
-                setStatus("ERREUR: Fréquence d'échantillonnage invalide. Doit être un nombre positif. / ERROR: Invalid sample rate. Must be a positive number.", COLOR_STATUS_ERROR);
-                return;
-            }
-        }
-
-        setStatus("Conversion en cours... / Conversion in progress...", COLOR_STATUS_PROCESSING);
-        setUIEnabled(false); // Disable UI during conversion / Désactiver l'interface pendant la conversion
-
-        new SwingWorker<List<String>, String>() {
-            private int successfulConversions = 0;
-            private int failedConversions = 0;
-            private final List<String> conversionErrors = new ArrayList<>();
-
+        SwingWorker<Void, ConversionProgress> worker = new SwingWorker<>() {
             @Override
-            protected List<String> doInBackground() {
-                for (int i = 0; i < filesToConvert.size(); i++) {
-                    File inputFile = filesToConvert.get(i);
-                    // Construct output filename based on original name and new format
-                    // Construire le nom du fichier de sortie basé sur le nom original et le nouveau format
-                    String outputFileName = getOutputFileName(inputFile.getName(), outputFormat);
-                    File outputFile = new File(outputDirectory, outputFileName);
+            protected Void doInBackground() {
+                int total = audioFiles.size();
+                int completed = 0;
+                int success = 0;
+                int failed = 0;
 
-                    publish("Converting: " + inputFile.getName() + " (" + (i + 1) + "/" + filesToConvert.size() + ")");
+                for (AudioFile audioFile : audioFiles) {
+                    if (!isConverting) break;
 
-                    try {
-                        List<String> command = buildFfmpegCommand(inputFile, outputFile, outputFormat, useCustomSettings);
-                        System.out.println("INFO: Executing command: " + String.join(" ", command)); // Log the full command for debugging
-                        int exitCode = executeFfmpegCommand(command);
+                    audioFile.status = AudioFileStatus.CONVERTING;
+                    fileList.repaint();
 
-                        if (exitCode == 0) {
-                            successfulConversions++;
-                            System.out.println("INFO: Successfully converted: " + inputFile.getName());
-                        } else {
-                            failedConversions++;
-                            String errorMsg = "Failed to convert " + inputFile.getName() + ". FFmpeg exited with code " + exitCode + ".";
-                            System.err.println("ERROR: " + errorMsg);
-                            conversionErrors.add(errorMsg);
-                        }
-                    } catch (IOException | InterruptedException e) {
-                        failedConversions++;
-                        String errorMsg = "Error converting " + inputFile.getName() + ": " + e.getMessage();
-                        System.err.println("ERROR: " + errorMsg);
-                        conversionErrors.add(errorMsg);
-                        // If FFmpeg executable is not found or cannot be executed, stop further conversions
-                        // Si l'exécutable FFmpeg est introuvable ou ne peut pas être exécuté, arrêter les conversions
-                        if (e instanceof IOException && (e.getMessage().contains("No such file or directory") || e.getMessage().contains("error=2, No such file or directory"))) {
-                             SwingUtilities.invokeLater(() -> setStatus("FATAL ERROR: FFmpeg executable not found. Please configure path. / ERREUR FATALE: Exécutable FFmpeg introuvable. Veuillez configurer le chemin.", COLOR_STATUS_ERROR));
-                             return conversionErrors; // Stop processing further files
-                        }
+                    publish(new ConversionProgress(completed, total, audioFile.file.getName(), 0));
+
+                    boolean result = convertAudioFile(audioFile);
+
+                    if (result) {
+                        audioFile.status = AudioFileStatus.COMPLETED;
+                        success++;
+                    } else {
+                        audioFile.status = AudioFileStatus.FAILED;
+                        failed++;
                     }
+
+                    completed++;
+                    publish(new ConversionProgress(completed, total, audioFile.file.getName(), 100));
+                    fileList.repaint();
                 }
-                return conversionErrors;
+
+                statistics.totalConverted += completed;
+                statistics.successCount += success;
+                statistics.failedCount += failed;
+                return null;
             }
 
             @Override
-            protected void process(List<String> chunks) {
-                for (String status : chunks) {
-                    setStatus(status, COLOR_STATUS_PROCESSING);
-                }
+            protected void process(List<ConversionProgress> chunks) {
+                ConversionProgress latest = chunks.get(chunks.size() - 1);
+                int progress = (int) ((latest.completed * 100.0) / latest.total);
+                globalProgressBar.setValue(progress);
+                statusLabel.setText(String.format(
+                        "Conversion : %d/%d - %s",
+                        latest.completed, latest.total, latest.fileName));
             }
 
             @Override
             protected void done() {
-                setUIEnabled(true);
-                try {
-                    List<String> errors = get();
-                    if (errors.isEmpty()) {
-                        setStatus("Conversion terminée avec succès ! " + successfulConversions + " fichier(s) converti(s). / Conversion completed successfully! " + successfulConversions + " file(s) converted.", COLOR_ACCENT_SUCCESS);
-                    } else {
-                        StringBuilder fullErrorMsg = new StringBuilder();
-                        fullErrorMsg.append("Conversion terminée avec des erreurs. Succès: ").append(successfulConversions)
-                                .append(", Échecs: ").append(failedConversions).append(".\n")
-                                .append("Conversion finished with errors. Success: ").append(successfulConversions)
-                                .append(", Failures: ").append(failedConversions).append(".\n\n")
-                                .append("Détails des erreurs / Error details:\n");
-                        for (String error : errors) {
-                            fullErrorMsg.append("- ").append(error).append("\n");
-                        }
-                        setStatus("Conversion terminée avec des erreurs. Voir les logs pour plus de détails. / Conversion finished with errors. See logs for details.", COLOR_STATUS_ERROR);
-                        JOptionPane.showMessageDialog(AudioConverter.this,
-                                fullErrorMsg.toString(),
-                                "Conversion Errored / Conversion avec Erreurs",
-                                JOptionPane.ERROR_MESSAGE);
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    setStatus("Conversion interrompue ou échouée: " + e.getMessage(), COLOR_STATUS_ERROR);
-                    System.err.println("ERROR: Conversion SwingWorker failed: " + e.getMessage());
-                }
+                isConverting = false;
+                convertButton.setEnabled(true);
+                stopButton.setEnabled(false);
+                addFilesButton.setEnabled(true);
+                removeFilesButton.setEnabled(true);
+                clearAllButton.setEnabled(true);
+
+                globalProgressBar.setValue(100);
+                statusLabel.setText("Conversion terminée.");
+                log("Conversion terminée. Fichiers sauvegardés dans : " + outputDirectory.getAbsolutePath());
+
+                updateStatistics();
+                showSuccess("Conversion terminée avec succès.\n\nFichiers sauvegardés dans :\n" +
+                        outputDirectory.getAbsolutePath());
             }
-        }.execute();
+        };
+
+        worker.execute();
     }
 
-    /**
-     * Constructs the FFmpeg command based on user selections.
-     * Uses a List of Strings for ProcessBuilder for security against command injection.
-     *
-     * Construit la commande FFmpeg basée sur les sélections de l'utilisateur.
-     * Utilise une liste de chaînes de caractères pour ProcessBuilder afin de sécuriser contre l'injection de commandes.
-     *
-     * @param inputFile The input audio file. / Le fichier audio d'entrée.
-     * @param outputFile The desired output file. / Le fichier de sortie désiré.
-     * @param outputFormat The selected output format (e.g., "mp3", "wav"). / Le format de sortie sélectionné.
-     * @param useCustomSettings Whether to apply custom bitrate, sample rate, and channels. / Si les paramètres personnalisés doivent être appliqués.
-     * @return A List of strings representing the FFmpeg command and its arguments. / Une liste de chaînes de caractères représentant la commande FFmpeg et ses arguments.
-     */
-    private List<String> buildFfmpegCommand(File inputFile, File outputFile, String outputFormat, boolean useCustomSettings) {
-        List<String> command = new ArrayList<>();
-        command.add(FFMPEG_EXECUTABLE);
-        command.add("-i");
-        command.add(inputFile.getAbsolutePath());
+    private boolean convertAudioFile(AudioFile audioFile) {
+        AudioInputStream sourceStream = null;
+        AudioInputStream convertedStream = null;
+        
+        try {
+            log("Conversion du fichier : " + audioFile.file.getName());
 
-        // Apply custom settings if enabled / Appliquer les paramètres personnalisés si activés
-        if (useCustomSettings) {
-            String bitrate = bitrateField.getText();
-            String sampleRate = sampleRateField.getText();
-            String channels = (String) channelsComboBox.getSelectedItem();
+            // Lecture du fichier source
+            sourceStream = AudioSystem.getAudioInputStream(audioFile.file);
+            AudioFormat sourceFormat = sourceStream.getFormat();
 
-            if (bitrate != null && !bitrate.trim().isEmpty()) {
-                command.add("-b:a");
-                command.add(bitrate + "k"); // Bitrate in kilobits per second / Débit binaire en kilobits par seconde
+            // Paramètres de conversion
+            String outputFormat = Objects.requireNonNull(formatComboBox.getSelectedItem()).toString();
+            float sampleRate = getSampleRate();
+            int channels = getChannels(sourceFormat);
+            int sampleSizeInBits = getSampleSize();
+
+            // Création du format cible
+            AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    sampleRate,
+                    sampleSizeInBits,
+                    channels,
+                    channels * (sampleSizeInBits / 8),
+                    sampleRate,
+                    false
+            );
+
+            log("Format source : " + sourceFormat.toString());
+            log("Format cible : " + targetFormat.toString());
+
+            // Vérifier si la conversion est supportée
+            if (!AudioSystem.isConversionSupported(targetFormat, sourceFormat)) {
+                log("Conversion directe non supportée, tentative de conversion en deux étapes...");
+                
+                // Conversion en deux étapes : source -> PCM standard -> cible
+                AudioFormat intermediateFormat = new AudioFormat(
+                        AudioFormat.Encoding.PCM_SIGNED,
+                        sourceFormat.getSampleRate(),
+                        16,
+                        sourceFormat.getChannels(),
+                        sourceFormat.getChannels() * 2,
+                        sourceFormat.getSampleRate(),
+                        false
+                );
+                
+                AudioInputStream intermediateStream = AudioSystem.getAudioInputStream(intermediateFormat, sourceStream);
+                convertedStream = AudioSystem.getAudioInputStream(targetFormat, intermediateStream);
+            } else {
+                convertedStream = AudioSystem.getAudioInputStream(targetFormat, sourceStream);
             }
-            if (sampleRate != null && !sampleRate.trim().isEmpty()) {
-                command.add("-ar");
-                command.add(sampleRate); // Audio sample rate in Hz / Fréquence d'échantillonnage audio en Hz
-            }
 
-            if (channels != null && !channels.equals("Original")) {
-                switch (channels) {
-                    case "Mono":
-                        command.add("-ac");
-                        command.add("1");
-                        break;
-                    case "Stéréo":
-                        command.add("-ac");
-                        command.add("2");
-                        break;
-                    // Add more channel mappings if needed
-                    // Ajouter plus de mappings de canaux si nécessaire
-                }
+            // Nom et type du fichier de sortie
+            String outputFileName = getOutputFileName(audioFile.file, outputFormat);
+            File outputFile = new File(outputDirectory, outputFileName);
+
+            AudioFileFormat.Type fileType = getAudioFileType(outputFormat);
+            
+            // Écriture du fichier
+            AudioSystem.write(convertedStream, fileType, outputFile);
+
+            audioFile.outputFile = outputFile;
+            log("Succès : " + outputFileName + " (" + formatFileSize(outputFile.length()) + ")");
+            return true;
+
+        } catch (Exception e) {
+            log("Erreur sur " + audioFile.file.getName() + " : " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } finally {
+            // Fermeture propre des streams
+            try {
+                if (convertedStream != null) convertedStream.close();
+                if (sourceStream != null) sourceStream.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
-
-        command.add("-vn"); // Disable video output, ensuring audio-only conversion / Désactiver la sortie vidéo, assurant une conversion audio seulement
-        command.add("-y");  // Overwrite output file without asking / Écraser le fichier de sortie sans demander
-        command.add(outputFile.getAbsolutePath());
-
-        return command;
     }
 
-    /**
-     * Executes an FFmpeg command and captures its output and errors.
-     * Returns the exit code of the FFmpeg process.
-     * FFmpeg output is redirected to System.out and System.err for debugging.
-     *
-     * Exécute une commande FFmpeg et capture sa sortie et ses erreurs.
-     * Renvoie le code de sortie du processus FFmpeg.
-     * La sortie de FFmpeg est redirigée vers System.out et System.err pour le débogage.
-     *
-     * @param command A list of strings representing the command and its arguments. / Une liste de chaînes de caractères représentant la commande et ses arguments.
-     * @return The exit code of the FFmpeg process. / Le code de sortie du processus FFmpeg.
-     * @throws IOException If an I/O error occurs when starting the process. / Si une erreur d'E/S se produit lors du démarrage du processus.
-     * @throws InterruptedException If the current thread is interrupted while waiting for the process to complete. / Si le thread actuel est interrompu en attendant la fin du processus.
-     */
-    private int executeFfmpegCommand(List<String> command) throws IOException, InterruptedException {
-        ProcessBuilder pb = new ProcessBuilder(command);
-        // Redirect FFmpeg's stderr to capture error messages
-        // Rediriger la sortie d'erreur de FFmpeg pour capturer les messages d'erreur
-        pb.redirectErrorStream(true); // Merges stderr into stdout, helpful for simpler single stream capture
+    private void stopConversion() {
+        if (!isConverting) return;
 
-        Process process = pb.start();
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                "Voulez-vous vraiment arrêter la conversion ?",
+                "Confirmation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        if (result == JOptionPane.YES_OPTION) {
+            isConverting = false;
+            log("Conversion arrêtée par l'utilisateur.");
+        }
+    }
 
-        // Capture output (and errors, due to redirectErrorStream(true))
-        // Capturer la sortie (et les erreurs, grâce à redirectErrorStream(true))
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println("FFmpeg: " + line); // Log FFmpeg's output / Journaliser la sortie de FFmpeg
+    // ==================== UTILITAIRES ====================
+
+    private boolean isAudioFile(File file) {
+        String name = file.getName().toLowerCase();
+        for (String ext : SUPPORTED_INPUT_FORMATS) {
+            if (name.endsWith("." + ext)) return true;
+        }
+        return false;
+    }
+
+    private float getSampleRate() {
+        String selected = Objects.requireNonNull(sampleRateComboBox.getSelectedItem()).toString();
+        return Float.parseFloat(selected.split(" ")[0]);
+    }
+
+    private int getChannels(AudioFormat sourceFormat) {
+        int selected = channelsComboBox.getSelectedIndex();
+        if (selected == 0) return 1; // Mono
+        if (selected == 1) return 2; // Stéréo
+        return sourceFormat.getChannels(); // Original
+    }
+
+    private int getSampleSize() {
+        int selected = qualityComboBox.getSelectedIndex();
+        switch (selected) {
+            case 0: return 8;  // Basse
+            case 1: return 16; // Moyenne
+            case 2: return 24; // Haute
+            case 3: return 32; // Maximum
+            default: return 16;
+        }
+    }
+
+    private String getOutputFileName(File inputFile, String format) {
+        String baseName = inputFile.getName();
+        int dotIndex = baseName.lastIndexOf('.');
+        if (dotIndex > 0) baseName = baseName.substring(0, dotIndex);
+        return baseName + "_converted." + format.toLowerCase();
+    }
+
+    private AudioFileFormat.Type getAudioFileType(String format) {
+        switch (format.toUpperCase()) {
+            case "WAV":
+                return AudioFileFormat.Type.WAVE;
+            case "AIFF":
+                return AudioFileFormat.Type.AIFF;
+            case "AU":
+                return AudioFileFormat.Type.AU;
+            default:
+                return AudioFileFormat.Type.WAVE;
+        }
+    }
+
+    private void updateFileCount() {
+        fileCountLabel.setText(audioFiles.size() + " fichier(s)");
+    }
+
+    private void updateStatistics() {
+        statistics.totalConvertedLabel.setText(String.valueOf(statistics.totalConverted));
+        statistics.successLabel.setText(String.valueOf(statistics.successCount));
+        statistics.failedLabel.setText(String.valueOf(statistics.failedCount));
+
+        long totalSize = audioFiles.stream()
+                .filter(f -> f.outputFile != null)
+                .mapToLong(f -> f.outputFile.length())
+                .sum();
+
+        statistics.totalSizeLabel.setText(formatFileSize(totalSize));
+    }
+
+    private String formatFileSize(long bytes) {
+        DecimalFormat df = new DecimalFormat("#.##");
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024L * 1024L) return df.format(bytes / 1024.0) + " KB";
+        if (bytes < 1024L * 1024L * 1024L) return df.format(bytes / (1024.0 * 1024.0)) + " MB";
+        return df.format(bytes / (1024.0 * 1024.0 * 1024.0)) + " GB";
+    }
+
+    private void log(String message) {
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        logArea.append("[" + timestamp + "] " + message + "\n");
+        logArea.setCaretPosition(logArea.getDocument().getLength());
+    }
+
+    private void showWarning(String message) {
+        JOptionPane.showMessageDialog(this, message, "Attention", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void showSuccess(String message) {
+        JOptionPane.showMessageDialog(this, message, "Succès", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showAboutDialog() {
+        String message = "AudioConverter Pro 2025 - Elite Edition\n\n" +
+                "Version : 2.0.0\n" +
+                "Développé avec Java SE\n\n" +
+                "Convertisseur audio professionnel multi-format\n" +
+                "avec interface moderne et fonctionnalités avancées.\n\n" +
+                "© 2025 - Tous droits réservés.";
+        JOptionPane.showMessageDialog(this, message, "À propos", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showHelpDialog() {
+        String message = "Guide d'utilisation :\n\n" +
+                "1. Ajoutez des fichiers audio via le bouton ou par glisser-déposer.\n" +
+                "2. Sélectionnez le format de sortie et les paramètres.\n" +
+                "3. Cliquez sur CONVERTIR pour lancer la conversion.\n" +
+                "4. Les fichiers convertis sont sauvegardés dans :\n   " +
+                outputDirectory.getAbsolutePath() + "\n\n" +
+                "Formats supportés : WAV, AIFF, AU\n" +
+                "Note : Java Sound API supporte nativement ces formats.";
+        JOptionPane.showMessageDialog(this, message, "Aide", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showSettingsDialog() {
+        JDialog dialog = new JDialog(this, "Paramètres", true);
+        dialog.setSize(500, 400);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel panel = new JPanel(new BorderLayout(20, 20));
+        panel.setBackground(BACKGROUND_DARK);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel title = createSectionTitle("Paramètres avancés");
+        panel.add(title, BorderLayout.NORTH);
+
+        JPanel settingsPanel = new JPanel(new GridLayout(3, 2, 15, 15));
+        settingsPanel.setOpaque(false);
+
+        settingsPanel.add(createLabel("Dossier de sortie :"));
+        JButton changeDirButton = createModernButton("Changer...", PRIMARY_COLOR, false);
+        changeDirButton.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            if (chooser.showOpenDialog(dialog) == JFileChooser.APPROVE_OPTION) {
+                outputDirectory = chooser.getSelectedFile();
+                log("Dossier de sortie changé : " + outputDirectory.getAbsolutePath());
             }
-        }
-
-        return process.waitFor(); // Wait for the process to complete and return its exit code / Attendre que le processus se termine et renvoyer son code de sortie
-    }
-
-    /**
-     * Derives the output filename from the input filename and desired output format.
-     *
-     * Déduit le nom du fichier de sortie à partir du nom du fichier d'entrée et du format de sortie désiré.
-     *
-     * @param inputFileName The name of the input file. / Le nom du fichier d'entrée.
-     * @param outputFormat The desired output format (e.g., "mp3", "wav"). / Le format de sortie désiré.
-     * @return The constructed output filename. / Le nom du fichier de sortie construit.
-     */
-    private String getOutputFileName(String inputFileName, String outputFormat) {
-        int dotIndex = inputFileName.lastIndexOf('.');
-        if (dotIndex > 0) {
-            return inputFileName.substring(0, dotIndex) + "." + outputFormat;
-        }
-        return inputFileName + "." + outputFormat; // Fallback if no extension / Cas de secours si pas d'extension
-    }
-
-    /**
-     * Updates the main status label with a message and a specified color.
-     * This method is safe to call from any thread as it uses SwingUtilities.invokeLater.
-     *
-     * Met à jour le label de statut principal avec un message et une couleur spécifiée.
-     * Cette méthode peut être appelée depuis n'importe quel thread car elle utilise SwingUtilities.invokeLater.
-     *
-     * @param message The status message to display. / Le message de statut à afficher.
-     * @param color The color of the status message. / La couleur du message de statut.
-     */
-    private void setStatus(String message, Color color) {
-        SwingUtilities.invokeLater(() -> {
-            statusLabel.setText(message);
-            statusLabel.setForeground(color);
         });
+        settingsPanel.add(changeDirButton);
+
+        settingsPanel.add(createLabel("Threads de conversion :"));
+        JSpinner threadSpinner = new JSpinner(new SpinnerNumberModel(
+                Runtime.getRuntime().availableProcessors(), 1, 16, 1));
+        threadSpinner.setFont(FONT_LABEL);
+        settingsPanel.add(threadSpinner);
+
+        settingsPanel.add(createLabel("Ouvrir le dossier après conversion :"));
+        JCheckBox openFolderCheck = new JCheckBox();
+        openFolderCheck.setOpaque(false);
+        openFolderCheck.setSelected(settings.openFolderAfterConversion);
+        settingsPanel.add(openFolderCheck);
+
+        panel.add(settingsPanel, BorderLayout.CENTER);
+
+        JButton closeButton = createModernButton("Fermer", PRIMARY_COLOR, false);
+        closeButton.addActionListener(e -> dialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setOpaque(false);
+        buttonPanel.add(closeButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
     }
 
-    /**
-     * Enables or disables the main UI elements to prevent user interaction during conversion.
-     *
-     * Active ou désactive les éléments principaux de l'interface utilisateur pour empêcher
-     * l'interaction de l'utilisateur pendant la conversion.
-     *
-     * @param enabled True to enable, false to disable. / Vrai pour activer, faux pour désactiver.
-     */
-    private void setUIEnabled(boolean enabled) {
-        addFilesButton.setEnabled(enabled);
-        clearFilesButton.setEnabled(enabled);
-        outputFormatComboBox.setEnabled(enabled);
-        browseOutputButton.setEnabled(enabled);
-        convertButton.setEnabled(enabled);
-        advancedSettingsButton.setEnabled(enabled);
-        customSettingsCheckBox.setEnabled(enabled);
-        // Only enable bitrate/sampleRate/channels if custom settings checkbox is also enabled
-        // Activer les champs de débit binaire/fréquence d'échantillonnage/canaux seulement si la case à cocher des paramètres personnalisés est également activée
-        toggleAdvancedSettings(enabled && customSettingsCheckBox.isSelected());
-        ffmpegPathButton.setEnabled(enabled);
+    private void applyModernLookAndFeel() {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            System.setProperty("awt.useSystemAAFontSettings", "on");
+            System.setProperty("swing.aatext", "true");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    /**
-     * Custom renderer for JComboBox to style items.
-     * Rendu personnalisé pour JComboBox afin de styliser les éléments.
-     */
-    static class CustomComboBoxRenderer extends BasicComboBoxRenderer {
-        private final Color background;
-        private final Color foreground;
+    // ==================== CLASSES INTERNES ====================
 
-        public CustomComboBoxRenderer(Color background, Color foreground) {
-            this.background = background;
-            this.foreground = foreground;
+    private static class AudioFile {
+        File file;
+        File outputFile;
+        AudioFileStatus status;
+
+        AudioFile(File file) {
+            this.file = file;
+            this.status = AudioFileStatus.PENDING;
         }
 
         @Override
-        public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (isSelected) {
-                setBackground(COLOR_ACCENT_PRIMARY); // Highlight selected item
-                setForeground(Color.WHITE);
-            } else {
-                setBackground(background);
-                setForeground(foreground);
+        public String toString() {
+            return file.getName();
+        }
+    }
+
+    private enum AudioFileStatus {
+        PENDING, CONVERTING, COMPLETED, FAILED
+    }
+
+    private static class ConversionSettings {
+        boolean openFolderAfterConversion = false;
+        int threadCount = Runtime.getRuntime().availableProcessors();
+    }
+
+    private static class ConversionStatistics {
+        int totalConverted = 0;
+        int successCount = 0;
+        int failedCount = 0;
+        JLabel totalConvertedLabel;
+        JLabel successLabel;
+        JLabel failedLabel;
+        JLabel totalSizeLabel;
+    }
+
+    private static class ConversionProgress {
+        int completed;
+        int total;
+        String fileName;
+        int fileProgress;
+
+        ConversionProgress(int completed, int total, String fileName, int fileProgress) {
+            this.completed = completed;
+            this.total = total;
+            this.fileName = fileName;
+            this.fileProgress = fileProgress;
+        }
+    }
+
+    // ==================== RENDERER ====================
+
+    private class AudioFileCellRenderer extends JPanel implements ListCellRenderer<AudioFile> {
+        private JLabel nameLabel;
+        private JLabel sizeLabel;
+        private JLabel statusLabel;
+
+        AudioFileCellRenderer() {
+            setLayout(new BorderLayout(15, 5));
+            setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_COLOR),
+                    BorderFactory.createEmptyBorder(10, 15, 10, 15)
+            ));
+
+            JPanel infoPanel = new JPanel(new GridLayout(2, 1, 0, 5));
+            infoPanel.setOpaque(false);
+
+            nameLabel = new JLabel();
+            nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+            sizeLabel = new JLabel();
+            sizeLabel.setFont(FONT_SMALL);
+
+            infoPanel.add(nameLabel);
+            infoPanel.add(sizeLabel);
+
+            JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+            statusPanel.setOpaque(false);
+
+            statusLabel = new JLabel();
+            statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            statusPanel.add(statusLabel);
+
+            add(infoPanel, BorderLayout.CENTER);
+            add(statusPanel, BorderLayout.EAST);
+        }
+
+        @Override
+        public Component getListCellRendererComponent(
+                JList<? extends AudioFile> list,
+                AudioFile value,
+                int index,
+                boolean isSelected,
+                boolean cellHasFocus
+        ) {
+            nameLabel.setText(value.file.getName());
+            sizeLabel.setText(formatFileSize(value.file.length()));
+
+            switch (value.status) {
+                case PENDING:
+                    statusLabel.setText("En attente");
+                    statusLabel.setForeground(TEXT_SECONDARY);
+                    break;
+                case CONVERTING:
+                    statusLabel.setText("En conversion...");
+                    statusLabel.setForeground(PRIMARY_COLOR);
+                    break;
+                case COMPLETED:
+                    statusLabel.setText("Terminé");
+                    statusLabel.setForeground(SUCCESS_COLOR);
+                    break;
+                case FAILED:
+                    statusLabel.setText("Échoué");
+                    statusLabel.setForeground(ERROR_COLOR);
+                    break;
             }
-            // Apply border for consistency if needed
-            // Appliquer une bordure pour la cohérence si nécessaire
-            setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+
+            if (isSelected) {
+                setBackground(PRIMARY_DARK);
+                nameLabel.setForeground(TEXT_PRIMARY);
+                sizeLabel.setForeground(TEXT_SECONDARY);
+            } else {
+                setBackground(BACKGROUND_MEDIUM);
+                nameLabel.setForeground(TEXT_PRIMARY);
+                sizeLabel.setForeground(TEXT_SECONDARY);
+            }
             return this;
         }
     }
 
-    /**
-     * FileDropTarget handles drag-and-drop of files onto a JTextArea.
-     * Cible de dépôt de fichiers gérant le glisser-déposer de fichiers sur une JTextArea.
-     */
-    static class FileDropTarget extends java.awt.dnd.DropTarget {
-        private final java.util.function.Consumer<List<File>> fileConsumer;
+    // ==================== UI PERSONNALISÉE ====================
 
-        public FileDropTarget(java.util.function.Consumer<List<File>> fileConsumer) {
-            this.fileConsumer = fileConsumer;
+    private class ModernScrollBarUI extends BasicScrollBarUI {
+        @Override
+        protected void configureScrollBarColors() {
+            this.thumbColor = PRIMARY_COLOR;
+            this.trackColor = BACKGROUND_LIGHT;
         }
 
         @Override
-        public void drop(java.awt.dnd.DropTargetDropEvent dtde) {
-            dtde.acceptDrop(java.awt.dnd.DnDConstants.ACTION_COPY);
-            Transferable transferable = dtde.getTransferable();
-            try {
-                if (transferable.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-                    @SuppressWarnings("unchecked")
-                    List<File> files = (List<File>) transferable.getTransferData(DataFlavor.javaFileListFlavor);
-                    fileConsumer.accept(files); // Pass files to the provided consumer
+        protected JButton createDecreaseButton(int orientation) {
+            return createZeroButton();
+        }
+
+        @Override
+        protected JButton createIncreaseButton(int orientation) {
+            return createZeroButton();
+        }
+
+        private JButton createZeroButton() {
+            JButton button = new JButton();
+            button.setPreferredSize(new Dimension(0, 0));
+            button.setMinimumSize(new Dimension(0, 0));
+            button.setMaximumSize(new Dimension(0, 0));
+            return button;
+        }
+
+        @Override
+        protected void paintThumb(Graphics g, JComponent c, Rectangle thumbBounds) {
+            if (!c.isEnabled()) return;
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(thumbColor);
+            g2.fillRoundRect(thumbBounds.x, thumbBounds.y,
+                    thumbBounds.width, thumbBounds.height, 10, 10);
+            g2.dispose();
+        }
+
+        @Override
+        protected void paintTrack(Graphics g, JComponent c, Rectangle trackBounds) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setColor(trackColor);
+            g2.fillRect(trackBounds.x, trackBounds.y,
+                    trackBounds.width, trackBounds.height);
+            g2.dispose();
+        }
+    }
+
+    private class ModernProgressBarUI extends BasicProgressBarUI {
+        @Override
+        protected void paintDeterminate(Graphics g, JComponent c) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int width = progressBar.getWidth();
+            int height = progressBar.getHeight();
+            int amountFull = getAmountFull(null, width, height);
+
+            g2.setColor(BACKGROUND_LIGHT);
+            g2.fillRoundRect(0, 0, width, height, 10, 10);
+
+            if (amountFull > 0) {
+                g2.setColor(PRIMARY_COLOR);
+                g2.fillRoundRect(0, 0, amountFull, height, 10, 10);
+            }
+
+            if (progressBar.isStringPainted()) {
+                paintString(g2, 0, 0, width, height, amountFull, null);
+            }
+
+            g2.dispose();
+        }
+    }
+
+    private class ModernSplitPaneUI extends BasicSplitPaneUI {
+        @Override
+        public BasicSplitPaneDivider createDefaultDivider() {
+            return new BasicSplitPaneDivider(this) {
+                @Override
+                public void paint(Graphics g) {
+                    g.setColor(BORDER_COLOR);
+                    g.fillRect(0, 0, getWidth(), getHeight());
                 }
-            } catch (UnsupportedFlavorException | IOException ex) {
-                System.err.println("ERROR: Drop operation failed: " + ex.getMessage());
-            } finally {
-                dtde.dropComplete(true);
-            }
+            };
         }
     }
 
-    /**
-     * Loads advanced audio conversion settings from user preferences.
-     * These settings include whether custom settings are enabled, custom bitrate, sample rate, and channels.
-     *
-     * Charge les paramètres avancés de conversion audio depuis les préférences utilisateur.
-     * Ces paramètres incluent l'activation des paramètres personnalisés, le débit binaire, la fréquence d'échantillonnage et les canaux.
-     */
-    private void loadAdvancedSettingsFromPreferences() {
-        Preferences prefs = Preferences.userNodeForPackage(AudioConverter.class);
-        customSettingsCheckBox.setSelected(prefs.getBoolean(PREF_KEY_CUSTOM_SETTINGS_ENABLED, false));
-        bitrateField.setText(prefs.get(PREF_KEY_CUSTOM_BITRATE, "192")); // Default to 192kbps
-        sampleRateField.setText(prefs.get(PREF_KEY_CUSTOM_SAMPLERATE, "44100")); // Default to 44.1kHz
-        channelsComboBox.setSelectedItem(prefs.get(PREF_KEY_CUSTOM_CHANNELS, "Original"));
-        toggleAdvancedSettings(customSettingsCheckBox.isSelected()); // Apply initial state
-        System.out.println("INFO: Advanced settings loaded from preferences."); // INFO: Paramètres avancés chargés depuis les préférences.
-    }
+    // ==================== DRAG & DROP ====================
 
-    /**
-     * Saves the current advanced audio conversion settings to user preferences.
-     * This ensures that user-defined settings persist across application sessions.
-     *
-     * Sauvegarde les paramètres avancés de conversion audio actuels dans les préférences utilisateur.
-     * Cela garantit que les paramètres définis par l'utilisateur persistent d'une session à l'autre.
-     */
-    private void saveAdvancedSettingsToPreferences() {
-        Preferences prefs = Preferences.userNodeForPackage(AudioConverter.class);
-        prefs.putBoolean(PREF_KEY_CUSTOM_SETTINGS_ENABLED, customSettingsCheckBox.isSelected());
-        prefs.put(PREF_KEY_CUSTOM_BITRATE, bitrateField.getText());
-        prefs.put(PREF_KEY_CUSTOM_SAMPLERATE, sampleRateField.getText());
-        prefs.put(PREF_KEY_CUSTOM_CHANNELS, (String) channelsComboBox.getSelectedItem());
-        System.out.println("INFO: Advanced settings saved to preferences."); // INFO: Paramètres avancés sauvegardés dans les préférences.
-    }
-
-    /**
-     * Loads the custom FFmpeg executable path from user preferences.
-     * This path is used as the highest priority when determining which FFmpeg executable to use.
-     *
-     * Charge le chemin de l'exécutable FFmpeg personnalisé depuis les préférences utilisateur.
-     * Ce chemin est utilisé en priorité la plus élevée lors de la détermination de l'exécutable FFmpeg à utiliser.
-     */
-    private static void loadUserFfmpegPathFromPreferences() {
-        Preferences prefs = Preferences.userNodeForPackage(AudioConverter.class);
-        USER_CUSTOM_FFMPEG_PATH = prefs.get(PREF_KEY_CUSTOM_FFMPEG_PATH, "");
-        System.out.println("INFO: Custom FFmpeg path loaded from preferences: '" + USER_CUSTOM_FFMPEG_PATH + "'"); // INFO: Chemin FFmpeg personnalisé chargé depuis les préférences :
-    }
-
-    /**
-     * Saves the provided FFmpeg executable path to user preferences.
-     * If the path is null, it saves an empty string. This updates
-     * the static variable `USER_CUSTOM_FFMPEG_PATH` as well.
-     *
-     * Sauvegarde le chemin de l'exécutable FFmpeg fourni dans les préférences utilisateur.
-     * Si le chemin est nul, une chaîne vide est sauvegardée. Cela met également à jour
-     * la variable statique `USER_CUSTOM_FFMPEG_PATH`.
-     *
-     * @param path The FFmpeg executable path to save. / Le chemin de l'exécutable FFmpeg à sauvegarder.
-     */
-    private static void saveUserFfmpegPathToPreferences(String path) {
-        Preferences prefs = Preferences.userNodeForPackage(AudioConverter.class);
-        if (path == null) path = "";
-        prefs.put(PREF_KEY_CUSTOM_FFMPEG_PATH, path);
-        USER_CUSTOM_FFMPEG_PATH = path; // Update the static variable as well / Mettre à jour la variable statique également
-        System.out.println("INFO: Custom FFmpeg path saved to preferences: '" + path + "'"); // INFO: Chemin FFmpeg personnalisé sauvegardé dans les préférences :
-    }
-
-    /**
-     * Initializes the FFmpeg executable path based on a priority order:
-     * 1. User-defined custom path (from preferences).
-     * 2. FFmpeg executable in the same directory as the application JAR/class files.
-     * 3. FFmpeg from the system's PATH environment variable.
-     * Sets FFMPEG_EXECUTABLE and LOCAL_FFMPEG_SEARCH_DETAILS for diagnostics.
-     *
-     * Initialise le chemin de l'exécutable FFmpeg selon un ordre de priorité :
-     * 1. Chemin personnalisé défini par l'utilisateur (depuis les préférences).
-     * 2. Exécutable FFmpeg dans le même répertoire que le JAR de l'application ou les fichiers de classe.
-     * 3. FFmpeg depuis la variable d'environnement PATH du système.
-     * Définit FFMPEG_EXECUTABLE et LOCAL_FFMPEG_SEARCH_DETAILS pour les diagnostics.
-     */
-    private static void initializeFfmpegPath() {
-        StringBuilder searchLog = new StringBuilder("FFmpeg path determination:\n"); // Détermination du chemin FFmpeg :
-        String ffmpegExecutableName = "ffmpeg";
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("win")) {
-            ffmpegExecutableName = "ffmpeg.exe";
-        }
-
-        // 1. Check user-defined custom path / 1. Vérifier le chemin personnalisé par l'utilisateur
-        if (USER_CUSTOM_FFMPEG_PATH != null && !USER_CUSTOM_FFMPEG_PATH.trim().isEmpty()) {
-            searchLog.append(" 1. Attempting custom path: '").append(USER_CUSTOM_FFMPEG_PATH).append("'\n"); // Essai du chemin personnalisé :
-            File customFfmpeg = new File(USER_CUSTOM_FFMPEG_PATH);
-            if (customFfmpeg.exists() && customFfmpeg.isFile() && customFfmpeg.canExecute()) {
-                FFMPEG_EXECUTABLE = customFfmpeg.getAbsolutePath();
-                searchLog.append(" -> SUCCESS: FFmpeg found and executable.\n"); // SUCCÈS : FFmpeg trouvé et exécutable.
-                LOCAL_FFMPEG_SEARCH_DETAILS = searchLog.toString();
-                System.out.println(LOCAL_FFMPEG_SEARCH_DETAILS);
-                return;
-            } else {
-                searchLog.append(" -> FAILED: Custom path is not a valid or executable file.\n"); // ÉCHEC : Le chemin personnalisé n'est pas un fichier valide ou exécutable.
-            }
-        }
-
-        // 2. Check local application directory / 2. Vérifier le répertoire local de l'application
-        try {
-            ProtectionDomain protectionDomain = AudioConverter.class.getProtectionDomain();
-            if (protectionDomain == null) {
-                searchLog.append(" -> CRITICAL: ProtectionDomain is null. Cannot determine application directory.\n"); // CRITIQUE : ProtectionDomain est nul. Impossible de déterminer le répertoire de l'application.
-                throw new SecurityException("ProtectionDomain is null");
-            }
-            CodeSource codeSource = protectionDomain.getCodeSource();
-            if (codeSource == null) {
-                searchLog.append(" -> CRITICAL: CodeSource is null. Cannot determine application directory.\n"); // CRITIQUE : CodeSource est nul. Impossible de déterminer le répertoire de l'application.
-                throw new SecurityException("CodeSource is null");
-            }
-            URL codeSourceUrl = codeSource.getLocation();
-            if (codeSourceUrl == null) {
-                searchLog.append(" -> CRITICAL: CodeSource URL is null. Cannot determine application directory.\n"); // CRITIQUE : URL du CodeSource est nul. Impossible de déterminer le répertoire de l'application.
-                throw new SecurityException("CodeSource URL is null");
-            }
-            URI codeSourceUri = codeSourceUrl.toURI();
-            File codeSourceFile = new File(codeSourceUri);
-            File appBaseDirectory;
-            String appBaseInfo;
-
-            if (codeSourceFile.isFile() && codeSourceFile.getName().toLowerCase().endsWith(".jar")) {
-                appBaseDirectory = codeSourceFile.getParentFile();
-                appBaseInfo = (appBaseDirectory != null) ? appBaseDirectory.getAbsolutePath() : "JAR parent directory (not found)"; // Répertoire parent du JAR (introuvable)
-            } else if (codeSourceFile.isDirectory()) {
-                appBaseDirectory = codeSourceFile;
-                appBaseInfo = appBaseDirectory.getAbsolutePath();
-            } else {
-                appBaseInfo = codeSourceFile.getAbsolutePath() + " (is neither a JAR nor a directory)"; // n'est ni un JAR ni un répertoire
-                appBaseDirectory = new File("."); // Fallback
-            }
-
-            searchLog.append(" 2. Application base directory determined: '").append(appBaseInfo).append("'\n"); // Répertoire de base de l'application déterminé :
-            if (appBaseDirectory != null) {
-                File localAppFfmpeg = new File(appBaseDirectory, ffmpegExecutableName);
-                searchLog.append("    Checking: '").append(localAppFfmpeg.getAbsolutePath()).append("'\n"); // Vérification de :
-                if (localAppFfmpeg.exists() && localAppFfmpeg.isFile() && localAppFfmpeg.canExecute()) {
-                    FFMPEG_EXECUTABLE = localAppFfmpeg.getAbsolutePath();
-                    searchLog.append("    -> SUCCESS: FFmpeg found and executable.\n"); // SUCCÈS : FFmpeg trouvé et exécutable.
-                    LOCAL_FFMPEG_SEARCH_DETAILS = searchLog.toString();
-                    System.out.println(LOCAL_FFMPEG_SEARCH_DETAILS);
-                    return;
-                } else {
-                    searchLog.append("    -> FAILED: Not found or not executable in app directory.\n"); // ÉCHEC : Introuvable ou non exécutable dans le répertoire de l'application.
+    private static class FileDrop {
+        FileDrop(Component c, Listener listener) {
+            c.setDropTarget(new java.awt.dnd.DropTarget() {
+                @Override
+                public synchronized void drop(java.awt.dnd.DropTargetDropEvent evt) {
+                    try {
+                        evt.acceptDrop(java.awt.dnd.DnDConstants.ACTION_COPY);
+                        @SuppressWarnings("unchecked")
+                        java.util.List<File> droppedFiles =
+                                (java.util.List<File>) evt.getTransferable().getTransferData(
+                                        java.awt.datatransfer.DataFlavor.javaFileListFlavor);
+                        listener.filesDropped(droppedFiles.toArray(new File[0]));
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
                 }
-            }
-        } catch (URISyntaxException e) {
-            searchLog.append(" 2. FAILED: Error determining application path: ").append(e.getMessage()).append("\n"); // ÉCHEC : Erreur lors de la détermination du chemin de l'application :
-            System.err.println("ERROR: URISyntaxException when determining app path: " + e.getMessage());
-        } catch (SecurityException e) {
-            searchLog.append(" 2. FAILED: Security restriction preventing application path determination: ").append(e.getMessage()).append("\n"); // ÉCHEC : Restriction de sécurité empêchant la détermination du chemin de l'application :
-            System.err.println("ERROR: SecurityException when determining app path: " + e.getMessage());
+            });
         }
 
-        // 3. Check system PATH environment variable / 3. Vérifier la variable d'environnement PATH du système
-        searchLog.append(" 3. Attempting system PATH search for '").append(ffmpegExecutableName).append("'\n"); // Tentative de recherche dans le PATH système pour
-        String pathEnv = System.getenv("PATH");
-        if (pathEnv != null) {
-            String[] paths = pathEnv.split(File.pathSeparator);
-            for (String path : paths) {
-                File ffmpegFile = new File(path, ffmpegExecutableName);
-                searchLog.append("    Checking PATH entry: '").append(ffmpegFile.getAbsolutePath()).append("'\n"); // Vérification de l'entrée PATH :
-                if (ffmpegFile.exists() && ffmpegFile.isFile() && ffmpegFile.canExecute()) {
-                    FFMPEG_EXECUTABLE = ffmpegFile.getAbsolutePath();
-                    searchLog.append("    -> SUCCESS: FFmpeg found and executable in PATH.\n"); // SUCCÈS : FFmpeg trouvé et exécutable dans le PATH.
-                    LOCAL_FFMPEG_SEARCH_DETAILS = searchLog.toString();
-                    System.out.println(LOCAL_FFMPEG_SEARCH_DETAILS);
-                    return;
-                }
-            }
-        }
-        searchLog.append(" -> FAILED: Not found or not executable in system PATH.\n"); // ÉCHEC : Introuvable ou non exécutable dans le PATH système.
-
-        FFMPEG_EXECUTABLE = null; // FFmpeg not found / FFmpeg introuvable
-        LOCAL_FFMPEG_SEARCH_DETAILS = searchLog.toString();
-        System.err.println("WARNING: FFmpeg executable could not be found via any method."); // AVERTISSEMENT : L'exécutable FFmpeg n'a pu être trouvé par aucune méthode.
-        System.out.println(LOCAL_FFMPEG_SEARCH_DETAILS);
-    }
-
-    /**
-     * Checks if the FFmpeg executable is available and updates the FFmpeg status label.
-     * This method is called on application startup and after path configuration.
-     *
-     * Vérifie si l'exécutable FFmpeg est disponible et met à jour le label de statut FFmpeg.
-     * Cette méthode est appelée au démarrage de l'application et après la configuration du chemin.
-     *
-     * @return True if FFmpeg is found and executable, false otherwise. / Vrai si FFmpeg est trouvé et exécutable, faux sinon.
-     */
-    private boolean isFfmpegAvailable() {
-        loadUserFfmpegPathFromPreferences(); // Always load the latest user path preference first
-        initializeFfmpegPath(); // Then try to resolve the path based on priority
-
-        if (FFMPEG_EXECUTABLE != null) {
-            ffmpegStatusLabel.setText("FFmpeg Statut: Trouvé / Status: Found");
-            ffmpegStatusLabel.setForeground(COLOR_ACCENT_SUCCESS);
-            return true;
-        } else {
-            ffmpegStatusLabel.setText("FFmpeg Statut: Non Trouvé / Status: Not Found");
-            ffmpegStatusLabel.setForeground(COLOR_ACCENT_DANGER);
-            return false;
+        interface Listener {
+            void filesDropped(File[] files);
         }
     }
 
-    /**
-     * Performs a check for FFmpeg availability on application startup.
-     * This method is called from the constructor to initialize the FFmpeg status label.
-     *
-     * Effectue une vérification de la disponibilité de FFmpeg au démarrage de l'application.
-     * Cette méthode est appelée depuis le constructeur pour initialiser le label de statut FFmpeg.
-     */
-    private void checkFfmpegOnStartup() {
-        isFfmpegAvailable();
-    }
+    // ==================== MAIN ====================
 
-
-    /**
-     * Prompts the user to configure the FFmpeg executable path.
-     * This path is then saved to user preferences for persistence.
-     *
-     * Demande à l'utilisateur de configurer le chemin de l'exécutable FFmpeg.
-     * Ce chemin est ensuite sauvegardé dans les préférences utilisateur pour persistance.
-     */
-    private void configureFfmpegPath() {
-        JFileChooser pathChooser = new JFileChooser();
-        pathChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        pathChooser.setDialogTitle("Sélectionner l'exécutable FFmpeg / Select FFmpeg Executable");
-
-        // Set current custom path if it exists, for user convenience
-        // Définir le chemin personnalisé actuel s'il existe, pour la commodité de l'utilisateur
-        if (USER_CUSTOM_FFMPEG_PATH != null && !USER_CUSTOM_FFMPEG_PATH.isEmpty()) {
-            File currentPath = new File(USER_CUSTOM_FFMPEG_PATH);
-            if (currentPath.exists()) {
-                pathChooser.setSelectedFile(currentPath);
-            }
-        }
-
-        int result = pathChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = pathChooser.getSelectedFile();
-            if (selectedFile.exists() && selectedFile.isFile() && selectedFile.canExecute()) {
-                saveUserFfmpegPathToPreferences(selectedFile.getAbsolutePath());
-                isFfmpegAvailable(); // Re-check and update status label / Revérifier et mettre à jour le label de statut
-            } else {
-                JOptionPane.showMessageDialog(this,
-                        "Le fichier sélectionné n'est pas un exécutable FFmpeg valide ou n'est pas exécutable.\n" +
-                                "The selected file is not a valid FFmpeg executable or is not executable.",
-                        "FFmpeg Invalide / Invalid FFmpeg",
-                        JOptionPane.ERROR_MESSAGE);
-                saveUserFfmpegPathToPreferences(""); // Clear invalid path / Effacer le chemin invalide
-                isFfmpegAvailable(); // Update status to Not Found / Mettre à jour le statut à Non Trouvé
-            }
-        }
-    }
-
-
-    /**
-     * Main method to run the application.
-     * Sets up the Swing UI on the Event Dispatch Thread.
-     *
-     * Méthode principale pour exécuter l'application.
-     * Configure l'interface utilisateur Swing sur le thread de répartition des événements.
-     *
-     * @param args Command line arguments (not used). / Arguments de la ligne de commande (non utilisés).
-     */
     public static void main(String[] args) {
-        // Load preferences at startup to initialize USER_CUSTOM_FFMPEG_PATH
-        // Charger les préférences au démarrage pour initialiser USER_CUSTOM_FFMPEG_PATH
-        loadUserFfmpegPathFromPreferences();
-
         SwingUtilities.invokeLater(() -> {
-            AudioConverter converter = new AudioConverter();
-            converter.setVisible(true);
-            converter.updateFileListDisplay(); // Set initial text for file list area / Définir le texte initial pour la zone de liste de fichiers
+            try {
+                AudioConverter app = new AudioConverter();
+                app.setVisible(true);
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null,
+                        "Erreur lors du démarrage de l'application :\n" + e.getMessage(),
+                        "Erreur", JOptionPane.ERROR_MESSAGE);
+            }
         });
     }
 }
